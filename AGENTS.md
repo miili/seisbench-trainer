@@ -122,6 +122,13 @@ Known defects and limits in the reference code. Fix these when porting:
   `uv run pre-commit run --all-files` (ruff check, ruff format, pyright).
 - Full type annotations are required everywhere (pyright `strict`). Relax
   rules only for specific untyped third-party packages, never globally.
+- seisbench has no type information. The parts we use are declared in
+  partial stubs under `typings/seisbench/`. Extend the stubs, following
+  seisbench's real signatures, when you use a new seisbench API; do not add
+  `# type: ignore`.
+- Import seisbench (it pulls in torch) only where data or models are
+  actually loaded, so that config handling and the CLI stay fast.
+- Tests use the in-package synthetic dataset; they must not download data.
 - Tests: `uv run pytest`. Use a small SeisBench dataset, or a synthetic
   in-memory `WaveformDataset`, with a CPU-only short run. Tests must not
   download large datasets.

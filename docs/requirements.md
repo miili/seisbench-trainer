@@ -96,8 +96,8 @@ Fixed decisions:
   loaded data must serve several training runs in one process (HPO trials).
 - **FR-D4:** DataLoader workers must share the preloaded arrays and not copy
   them. Use fork, copy-on-write, and persistent workers.
-- **FR-D5:** Provide a synthetic or tiny-dataset mode for tests and laptop
-  runs that downloads nothing large.
+- **FR-D5:** Provide a synthetic dataset source (`{"type": "synthetic"}`)
+  in the package, for tests and laptop runs. It downloads nothing.
 - **FR-D6:** Log the dataset identity as an MLflow dataset input
   (`mlflow.log_input`). Record the name, component order, sampling rate,
   number of traces per split and a digest of the metadata.

@@ -12,6 +12,7 @@ dependencies = [
     "matplotlib>=3.10",
     "mlflow>=3.7,<4",
     "numpy>=2.0",
+    "pandas>=2.2",
     "pydantic>=2.11",
     "rich>=14.0",
     "scikit-learn>=1.6",
@@ -32,6 +33,7 @@ seisbench-trainer = "seisbench_trainer.cli:app"
 
 [dependency-groups]
 dev = [
+    "pandas-stubs>=3.1.0.261029",
     "pre-commit>=4.3",
     "pyright[nodejs]>=1.1.400",
     "pytest>=8.4",
@@ -57,6 +59,10 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ANN", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Stubs mirror seisbench's untyped **kwargs and keep one-line signatures.
+"typings/**/*.pyi" = ["ANN401", "E501"]
 
 [tool.pyright]
 include = ["src", "tests"]

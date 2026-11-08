@@ -34,7 +34,8 @@ src/seisbench_trainer/
   data/
     __init__.py          re-exports
     config.py            DataConfig, AugmentationConfig
-    sources.py           SeisBenchDataset | LocalDataset (tag "type"); each has .load()
+    sources.py           SeisBenchDataset | LocalDataset | SyntheticDataset (tag "type"); each has .load()
+    synthetic.py         write_synthetic_dataset(): noise plus P and S wavelets
     augmentations.py     train and validation pipelines
     loaders.py           split, concatenate, preload, DataLoaders
   models/
@@ -65,6 +66,7 @@ src/seisbench_trainer/
 tests/
   conftest.py            synthetic SeisBench dataset fixture (tmp_path)
   test_*.py
+typings/seisbench/       partial type stubs for the seisbench API in use
 configs/                 example JSON configs
 slurm/                   sbatch scripts
 ```
@@ -197,6 +199,16 @@ Tasks:
   key [FR-E2a.3].
 - Tests: batch shapes and dtypes; the label peaks agree with the pick-sample
   key; two passes over the validation set give identical windows.
+
+Status: done.
+
+- The synthetic data is part of the package: `data/synthetic.py`, used
+  through the `{"type": "synthetic"}` dataset source. It is written once per
+  set of parameters into the system temp folder.
+- `pick_samples` is a `(phases, 4)` float array, NaN-padded, in the order of
+  `PHASES` (P, S).
+- seisbench is typed through partial stubs in `typings/seisbench/`, and is
+  imported only when data is loaded.
 
 ## Step 3: Model config and LightningModule [FR-M1–M5, FR-T1]
 
