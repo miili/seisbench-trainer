@@ -1,15 +1,21 @@
 """Evaluation figures. Uses the object-oriented matplotlib API (no pyplot)."""
 
+# matplotlib leaves the **kwargs of its plotting methods untyped.
+# pyright: reportUnknownMemberType=false
+
 import base64
 import html
 import io
 import json
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 from matplotlib import rc_context  # pyright: ignore[reportUnknownVariableType]
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from matplotlib.typing import RcKeyType
+from matplotlib.lines import Line2D
+from matplotlib.typing import LineStyleType, RcKeyType
 
 from seisbench_trainer.metrics.picks import PickScores
 from seisbench_trainer.metrics.scores import (
@@ -19,21 +25,36 @@ from seisbench_trainer.metrics.scores import (
     threshold_curve,
 )
 
-COLORS = ("#2a78d6", "#6f6f6f", "#eb6834", "#1baf7a")
-MEAN_COLOR, MEDIAN_COLOR = "#eb6834", "#1baf7a"
+# Okabe-Ito (colour-blind safe); the reference model is grey.
+COLORS = ("#0072B2", "#7A7A7A", "#D55E00", "#009E73", "#CC79A7")
 STYLE: dict[RcKeyType, object] = {
-    "font.size": 10,
-    "axes.titlesize": 11,
-    "axes.titleweight": "bold",
-    "legend.fontsize": 8.5,
-    "legend.frameon": False,
+    "font.family": "sans-serif",
+    "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
+    "font.size": 7.5,
+    "axes.labelsize": 7.5,
+    "axes.titlesize": 8,
+    "axes.titlelocation": "left",
+    "axes.linewidth": 0.6,
     "axes.spines.top": False,
     "axes.spines.right": False,
-    "axes.grid": True,
-    "grid.alpha": 0.25,
-    "grid.linewidth": 0.6,
-    "lines.linewidth": 1.8,
+    "xtick.labelsize": 7,
+    "ytick.labelsize": 7,
+    "xtick.major.width": 0.6,
+    "ytick.major.width": 0.6,
+    "xtick.major.size": 3,
+    "ytick.major.size": 3,
+    "xtick.direction": "out",
+    "ytick.direction": "out",
+    "lines.linewidth": 1.2,
+    "legend.fontsize": 7,
+    "legend.frameon": False,
+    "mathtext.default": "regular",
 }
+METRIC_STYLES: tuple[tuple[str, LineStyleType], ...] = (
+    ("F1", "-"),
+    ("Precision", "--"),
+    ("Recall", ":"),
+)
 
 
 @dataclass(frozen=True)
@@ -42,27 +63,104 @@ class PhaseResult:
 
     pick: PickScores
     detection: PickScores
+    description: str = ""
+    """Shown next to the model name in the figure key, e.g. 'trained from scratch'."""
 
 
-def _stats_table(stats: dict[str, dict[str, float]], band_s: float) -> str:
-    """Monospace table of residual statistics, one column per model."""
-    names = list(stats)
-    rows = [
-        ("Picks", "n", "{:.0f}"),
-        ("Median", "median_s", "{:+.3f}"),
-        ("Mean", "mean_s", "{:+.3f}"),
-        ("MAE", "mae_s", "{:.3f}"),
-        ("RMS", "rms_s", "{:.3f}"),
-        ("P05", "p05_s", "{:+.3f}"),
-        ("P95", "p95_s", "{:+.3f}"),
-        (f"\u00b1{band_s:g} s", f"within_{band_s:g}s", "{:.1%}"),
-    ]
-    width = max(9, *(len(name) for name in names))
-    lines = [" " * 8 + "".join(f"{name[:width]:>{width + 1}}" for name in names)]
-    for label, key, fmt in rows:
-        cells = "".join(f"{fmt.format(stats[n][key]):>{width + 1}}" for n in names)
-        lines.append(f"{label:<8}{cells}")
-    return "\n".join(lines)
+Better = Literal["max", "min", "absmin"] | None
+
+
+@dataclass(frozen=True)
+class _Row:
+    label: str
+    values: list[float]
+    fmt: str
+    better: Better = None
+    text: list[str] | None = None
+
+
+def _bold_index(row: _Row) -> int | None:
+    """Index of the best value of a row, if the row has a direction."""
+    values = np.asarray(row.values, dtype=np.float64)
+    if row.better is None or len(values) < 2 or not np.isfinite(values).all():
+        return None
+    if row.better == "absmin":
+        values = np.abs(values)
+    best = np.max(values) if row.better == "max" else np.min(values)
+    winners = np.flatnonzero(values == best)
+    return int(winners[0]) if winners.size == 1 else None
+
+
+def _panel_label(axes: Axes, letter: str) -> None:
+    axes.text(
+        -0.16,
+        1.04,
+        letter,
+        transform=axes.transAxes,
+        fontsize=10,
+        fontweight="bold",
+        va="bottom",
+    )
+
+
+def _two_lines(name: str) -> str:
+    """'PhaseNet-BohemiaSaxony' -> 'PhaseNet-\nBohemiaSaxony' for table headers."""
+    head, found, tail = name.partition("-")
+    if found:
+        return f"{head}-\n{tail}"
+    head, found, tail = name.partition(" ")
+    if found:
+        return f"{head}\n{tail}"
+    return name
+
+
+def _table(
+    axes: Axes,
+    names: list[str],
+    rows: list[_Row | str],
+) -> None:
+    """Booktabs-style table: section titles (str) and value rows."""
+    axes.axis("off")
+    axes.set_xlim(0, 1)
+    axes.set_ylim(0, 1)
+    n_lines = (
+        2
+        + sum(1 for row in rows if isinstance(row, _Row))
+        + 1.4 * sum(1 for row in rows if isinstance(row, str))
+    )
+    step = 0.98 / (n_lines + 1)
+    width = 0.58 / len(names)
+    columns = [0.42 + width * (index + 1) for index in range(len(names))]
+
+    def rule(y: float, weight: float) -> None:
+        axes.plot(
+            [0, 1], [y, y], color="black", linewidth=weight, solid_capstyle="butt"
+        )
+
+    y = 0.98
+    rule(y, 0.9)
+    y -= 0.25 * step
+    for x, name, color in zip(columns, names, COLORS, strict=False):
+        axes.text(
+            x, y, _two_lines(name), ha="right", va="top", color=color, fontweight="bold"
+        )
+    y -= 2.1 * step
+    rule(y, 0.5)
+    for row in rows:
+        if isinstance(row, str):
+            y -= 1.15 * step
+            axes.text(0, y, row, fontstyle="italic", va="center", color="0.25")
+            y -= 0.25 * step
+            continue
+        y -= step
+        axes.text(0, y, row.label, va="center")
+        bold = _bold_index(row)
+        cells = row.text or [row.fmt.format(value) for value in row.values]
+        for index, (x, cell) in enumerate(zip(columns, cells, strict=True)):
+            weight = "bold" if index == bold else "normal"
+            axes.text(x, y, cell, ha="right", va="center", fontweight=weight)
+    y -= 0.7 * step
+    rule(y, 0.9)
 
 
 def phase_figure(
@@ -71,127 +169,177 @@ def phase_figure(
     sampling_rate: float,
     half_window_s: float,
     band_s: float,
+    tolerance_s: float,
 ) -> Figure:
-    """Residual histogram, P/R/F1 against threshold and ROC, one line per model.
+    """Publication figure of one phase: residuals, detection, ROC and statistics.
 
-    Legends sit at fixed positions, so they do not move between epochs.
-    ``band_s`` is the shaded tolerance band of the histogram.
+    a: residual histogram (log counts, bins on the sample grid) with the
+    ``band_s`` tolerance band; b: F1, precision and recall against the
+    threshold of the detection metrics (matching tolerance ``tolerance_s``),
+    with the F1-optimal threshold marked; c: ROC of the pick-window scores;
+    d: summary table, the better value per row in bold. Colours identify
+    the models (key at the top), line styles the metrics.
     """
-    with rc_context(STYLE):
-        figure = Figure(figsize=(18, 5), layout="constrained")
-        table, histogram, curves, roc = figure.subplots(
-            1, 4, gridspec_kw={"width_ratios": [0.6, 1, 1, 1]}
-        )
-        bins = np.linspace(-half_window_s, half_window_s, 101)
-        histogram.axvspan(
-            -band_s,
-            band_s,
-            color="0.93",
-            linewidth=0,
-            zorder=0,
-            label=f"\u00b1{band_s:g} s",
-        )
-        stats: dict[str, dict[str, float]] = {}
+    names = list(results)
+    colors = dict(zip(names, COLORS, strict=False))
+    half = round(half_window_s * sampling_rate)
+    step = max(1, half // 200)
+    edges = (np.arange(-half, half + 2 * step, step) - step / 2) / sampling_rate
 
-        for index, ((name, result), color) in enumerate(
-            zip(results.items(), COLORS, strict=False)
-        ):
+    with rc_context(STYLE):  # pyright: ignore[reportUnknownArgumentType]
+        figure = Figure(figsize=(7.2, 6.2), layout="constrained")
+        (histogram, curves), (roc, table) = figure.subplots(2, 2)
+        histogram.axvspan(-band_s, band_s, color="0.92", linewidth=0, zorder=0)
+
+        stats: dict[str, dict[str, float]] = {}
+        detection: dict[str, tuple[float, float, float, float]] = {}
+        aucs: list[float] = []
+        for index, (name, result) in enumerate(results.items()):
+            color = colors[name]
             residuals_s = result.pick.residuals / sampling_rate
             residuals_s = residuals_s[np.isfinite(residuals_s)]
-            summary = residual_summary(residuals_s, [band_s])
-            stats[name] = summary | {"n": float(residuals_s.size)}
-            histogram.hist(
-                residuals_s, bins=bins, histtype="stepfilled", alpha=0.15, color=color
-            )
+            stats[name] = residual_summary(residuals_s, [band_s]) | {
+                "n": float(residuals_s.size)
+            }
             histogram.hist(
                 residuals_s,
-                bins=bins,
+                bins=edges,
                 histtype="step",
-                linewidth=1.6,
                 color=color,
-                label=name,
+                linewidth=1.1 if index == 0 else 0.8,
+                zorder=3 - index,
             )
-            if index == 0 and residuals_s.size:
-                histogram.axvline(
-                    summary["mean_s"],
-                    color=MEAN_COLOR,
-                    linestyle="--",
-                    label=f"{name} mean",
-                )
-                histogram.axvline(
-                    summary["median_s"],
-                    color=MEDIAN_COLOR,
-                    linestyle=":",
-                    label=f"{name} median",
-                )
 
             curve = threshold_curve(result.detection)
             best = curve.best()
-            label = (
-                f"{name}: F1 {curve.f1[best]:.3f} at {curve.thresholds[best]:.2f} "
-                f"(P {curve.precision[best]:.3f}, R {curve.recall[best]:.3f})"
+            detection[name] = (
+                float(curve.thresholds[best]),
+                float(curve.f1[best]),
+                float(curve.precision[best]),
+                float(curve.recall[best]),
             )
-            curves.plot(curve.thresholds, curve.f1, color=color, label=label)
-            curves.plot(curve.thresholds, curve.precision, color=color, linestyle=":")
-            curves.plot(curve.thresholds, curve.recall, color=color, linestyle="--")
-            curves.axvline(
-                curve.thresholds[best], color=color, linewidth=0.8, alpha=0.6
+            for (_, style), values in zip(
+                METRIC_STYLES, (curve.f1, curve.precision, curve.recall), strict=True
+            ):
+                curves.plot(curve.thresholds, values, color=color, linestyle=style)
+            curves.plot(
+                curve.thresholds[best],
+                curve.f1[best],
+                "o",
+                color=color,
+                markersize=4,
+                markeredgecolor="white",
+                markeredgewidth=0.6,
+                zorder=5,
             )
 
             pick = result.pick
+            aucs.append(roc_auc(pick))
             if pick.scores.size and pick.negative_scores.size:
                 false_rate, true_rate = roc_curve(pick)
-                roc.plot(
-                    false_rate,
-                    true_rate,
-                    color=color,
-                    label=f"{name} (AUC {roc_auc(pick):.3f})",
-                )
+                roc.plot(false_rate, true_rate, color=color)
 
-        table.axis("off")
-        table.set_title("Residual statistics (s)")
-        table.text(
-            0.0,
-            1.0,
-            _stats_table(stats, band_s),
-            transform=table.transAxes,
-            va="top",
-            fontsize=8.5,
-            family="monospace",
-        )
+        histogram.set_yscale("log")
         histogram.set(
-            title="Pick residuals (window)",
-            xlabel=r"$t_\mathrm{pred} - t_\mathrm{true}$ (s)",
-            ylabel="Count",
             xlim=(-half_window_s, half_window_s),
+            xlabel="Pick residual, $t_{pred} - t_{true}$ (s)",
+            ylabel="Picks",
+            title="Pick residuals",
         )
-        histogram.legend(loc="upper right")
+        histogram.text(
+            band_s,
+            0.97,
+            f" ±{band_s:g} s",
+            transform=histogram.get_xaxis_transform(),
+            va="top",
+            fontsize=6.5,
+            color="0.4",
+        )
         curves.set(
-            title="Detection: F1 (solid), precision (:), recall (--)",
-            xlabel="Threshold",
-            ylabel="Score",
             xlim=(0, 1),
             ylim=(0, 1.02),
+            xlabel="Detection threshold",
+            ylabel="Score",
+            title=f"Detection (matching ±{tolerance_s:g} s)",
         )
-        curves.legend(loc="lower left")
-        roc.plot([0, 1], [0, 1], color="0.6", linestyle=":", linewidth=1)
+        style_key = [
+            Line2D([], [], color="0.2", linestyle=style, label=label)
+            for label, style in METRIC_STYLES
+        ] + [
+            Line2D(
+                [],
+                [],
+                color="0.2",
+                marker="o",
+                linestyle="",
+                markersize=4,
+                label="Best F1",
+            )
+        ]
+        curves.legend(handles=style_key, loc="lower left", handlelength=2.2)
+        roc.plot([0, 1], [0, 1], color="0.6", linestyle=":", linewidth=0.8)
         roc.set(
-            title="ROC (window)",
-            xlabel="False positive rate",
-            ylabel="True positive rate",
             xlim=(0, 1),
             ylim=(0, 1.01),
             aspect="equal",
+            xlabel="False positive rate",
+            ylabel="True positive rate",
+            title="Pick-window ROC",
         )
-        roc.legend(loc="lower right")
-        figure.suptitle(title, fontweight="bold")  # pyright: ignore[reportUnknownMemberType]
+
+        rows: list[_Row | str] = [
+            f"Detection (±{tolerance_s:g} s)",
+            _Row("Threshold", [detection[n][0] for n in names], "{:.2f}"),
+            _Row("F1", [detection[n][1] for n in names], "{:.3f}", "max"),
+            _Row("Precision", [detection[n][2] for n in names], "{:.3f}", "max"),
+            _Row("Recall", [detection[n][3] for n in names], "{:.3f}", "max"),
+            f"Pick window (±{half_window_s:g} s)",
+            _Row("Picks", [stats[n]["n"] for n in names], "{:,.0f}"),
+            _Row("ROC AUC", aucs, "{:.3f}", "max"),
+            _Row(
+                "Median (s)", [stats[n]["median_s"] for n in names], "{:+.3f}", "absmin"
+            ),
+            _Row("Mean (s)", [stats[n]["mean_s"] for n in names], "{:+.3f}", "absmin"),
+            _Row("MAE (s)", [stats[n]["mae_s"] for n in names], "{:.3f}", "min"),
+            _Row("RMS (s)", [stats[n]["rms_s"] for n in names], "{:.3f}", "min"),
+            _Row(
+                "5th–95th pct. (s)",
+                [stats[n]["p95_s"] - stats[n]["p05_s"] for n in names],
+                "",
+                "min",
+                [f"{stats[n]['p05_s']:+.2f} / {stats[n]['p95_s']:+.2f}" for n in names],
+            ),
+            _Row(
+                f"Within ±{band_s:g} s",
+                [stats[n][f"within_{band_s:g}s"] for n in names],
+                "{:.1%}",
+                "max",
+            ),
+        ]
+        _table(table, names, rows)
+        table.set_title("Summary")
+
+        for axes, letter in zip((histogram, curves, roc, table), "abcd", strict=True):
+            _panel_label(axes, letter)
+        key = [
+            Line2D(
+                [],
+                [],
+                color=colors[name],
+                linewidth=2,
+                label=f"{name}, {result.description}" if result.description else name,
+            )
+            for name, result in results.items()
+        ]
+        figure.legend(handles=key, loc="outside lower center", ncols=len(key))
+        figure.suptitle(title, fontsize=9, fontweight="bold")
     return figure
 
 
 def figure_to_png(figure: Figure) -> bytes:
     """Render a figure to PNG bytes."""
     buffer = io.BytesIO()
-    figure.savefig(buffer, format="png")  # pyright: ignore[reportUnknownMemberType]
+    figure.savefig(buffer, format="png", dpi=200)
     return buffer.getvalue()
 
 

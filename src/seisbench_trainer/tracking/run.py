@@ -57,7 +57,11 @@ def model_name(config: TrainConfig) -> str:
 
 
 def model_description(
-    config: TrainConfig, window_samples: int, epoch: int, score: float | None
+    config: TrainConfig,
+    window_samples: int,
+    epoch: int,
+    score: float | None,
+    thresholds: dict[str, float],
 ) -> str:
     """Markdown description of a trained model, shown in the MLflow UI."""
     data = config.data
@@ -73,7 +77,12 @@ def model_description(
         f"- Input: {data.component_order}, {data.sampling_rate:g} Hz, "
         f"{window_samples} samples\n"
         f"- Best epoch {epoch} by {best}\n"
-        f"- SeisBench export in `extra_files/`: "
+        + "".join(
+            f"- `{phase}_threshold` = {value:.3f} (F1-optimal on the validation "
+            "set; stored in `default_args`)\n"
+            for phase, value in thresholds.items()
+        )
+        + f"- SeisBench export in `extra_files/`: "
         f'`seisbench.models.{config.model.type}.load("{model_name(config)}")`'
     )
 
@@ -166,11 +175,15 @@ def log_seisbench_model(
     window_samples: int,
     step: int,
     score: float | None = None,
+    thresholds: dict[str, float] | None = None,
+    figures: dict[str, bytes] | None = None,
 ) -> str:
     """Log the model as an MLflow LoggedModel with its SeisBench export attached.
 
     Returns the model ID. The SeisBench ``.json``/``.pt`` pair is stored under
-    the model's ``extra_files`` and loads with ``sbm.<Model>.load()``.
+    the model's ``extra_files`` and loads with ``sbm.<Model>.load()``. The
+    detection ``thresholds`` go into its ``default_args``; the validation
+    ``figures`` (PNG per phase) are stored next to it.
     """
     if model.component_order != config.data.component_order:
         raise ValueError(
@@ -178,18 +191,28 @@ def log_seisbench_model(
             f"but it was trained on {config.data.component_order!r}"
         )
     model.eval()
+    # seisbench reads "<phase>_threshold" from default_args in classify().
+    threshold_args = {f"{p}_threshold": v for p, v in (thresholds or {}).items()}
+    model.default_args.update(threshold_args)
     channels = len(config.data.component_order)
     input_example = np.zeros((1, channels, window_samples), dtype=np.float32)
     with TemporaryDirectory() as tmp:
         path = Path(tmp) / model_name(config)
         model.save(path)
         files = [str(path.with_suffix(suffix)) for suffix in (".json", ".pt")]
+        for phase, png in (figures or {}).items():
+            figure_path = Path(tmp) / f"validation_{phase}_epoch{step}.png"
+            figure_path.write_bytes(png)
+            files.append(str(figure_path))
         requirements = [f"{name}=={version(name)}" for name in ("seisbench", "torch")]
-        description = model_description(config, window_samples, step, score)
+        description = model_description(
+            config, window_samples, step, score, thresholds or {}
+        )
         info = log_model(
             model,
             name=model_name(config),
             tags={DESCRIPTION: description, "variant": config.model.variant()},
+            params={key: f"{value:.3f}" for key, value in threshold_args.items()},
             input_example=input_example,
             extra_files=files,
             pip_requirements=requirements,  # skips slow requirement inference

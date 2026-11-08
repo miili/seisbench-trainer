@@ -73,12 +73,17 @@ class PickerModelConfig(StrictModel, ABC):
         """Per-phase probability curves (batch, sample), looked up by label."""
         return {phase: pred[:, model.labels.index(phase)] for phase in PHASES}
 
-    def variant(self) -> str:
-        """Short description of the starting weights, e.g. 'from-original'."""
+    def weights_label(self) -> str:
+        """Name of the starting weights: 'scratch', 'original', or a file name."""
         if self.pretrained is None:
             return "scratch"
         path = self.weights_path()
-        return f"from-{path.name if path else self.pretrained}"
+        return path.name if path else self.pretrained
+
+    def variant(self) -> str:
+        """Short description of the starting weights, e.g. 'from-original'."""
+        label = self.weights_label()
+        return label if self.pretrained is None else f"from-{label}"
 
     def window_samples(self, model: "sbm.WaveformModel") -> int:
         """Default input window length."""

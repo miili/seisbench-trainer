@@ -349,6 +349,19 @@ open.
   (`evaluation/validation_{P,S}.html`, rewritten every epoch). MLflow's own
   image slider (`log_image` with `step`) shows only 256 px thumbnails and
   prints all run params on each card, so it is not used.
+- The figure is a 2x2 publication layout (183 mm wide, Okabe-Ito colours,
+  panels a-d): residual histogram on the sample grid with log counts,
+  F1/precision/recall against the threshold (colour = model, line style =
+  metric, best F1 marked), pick-window ROC, and a summary table with the
+  better value per row in bold. One model key for the whole figure. The
+  trained model is called `<model>-<datasets>` (e.g.
+  `PhaseNet-BohemiaSaxony`, "fine-tuned from original"), the baseline
+  `<model> (<weights>)` (e.g. `PhaseNet (original)`).
+- The exported model stores the F1-optimal detection thresholds of its best
+  epoch (validation set) as `default_args.P_threshold` / `S_threshold`, which
+  seisbench's `classify()` uses. They are also logged-model params and part
+  of the description. The best epoch's figures are stored next to the
+  SeisBench files (`extra_files/validation_<phase>_epoch<N>.png`).
 - The logged model is named `<model>-<datasets>-<variant>` (the export name)
   and has a Markdown description (`mlflow.note.content`): input, best
   epoch and score, how to load the SeisBench export.

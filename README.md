@@ -100,7 +100,9 @@ rate. For example, `original` needs `ENZ`.
   figures of all epochs with a slider (open them in the Artifacts tab);
 - the best model as an MLflow logged model named
   `<model>-<datasets>-<variant>`, with the SeisBench `.json`/`.pt`
-  pair under `extra_files/`; it loads with `seisbench.models.PhaseNet.load()`
+  pair under `extra_files/`, with the validation thresholds in its
+  `default_args` (`P_threshold`, `S_threshold`) and the best epoch's
+  figures next to it; it loads with `seisbench.models.PhaseNet.load()`
   and can be used directly in Qseek.
 
 Lightning checkpoints stay local in `training.checkpoint_dir`.

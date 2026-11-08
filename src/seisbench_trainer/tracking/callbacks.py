@@ -24,6 +24,7 @@ from seisbench_trainer.metrics.plots import (
 )
 from seisbench_trainer.metrics.scores import summarize
 from seisbench_trainer.models import ModelConfig
+from seisbench_trainer.tracking.run import dataset_label
 from seisbench_trainer.training.module import PickerModule
 from seisbench_trainer.units import seconds_to_samples
 
@@ -63,6 +64,10 @@ class EvaluationCallback(pl.Callback):
         self.baseline_scores: dict[str, PickScores] | None = None
         self.first_epoch_logged = False
         self.frames: dict[str, list[tuple[str, bytes]]] = defaultdict(list)
+        self.figures: dict[int, dict[str, bytes]] = defaultdict(dict)
+        """PNG figure per epoch and phase; the best epoch's go with the model."""
+        self.thresholds: dict[int, dict[str, float]] = {}
+        """F1-optimal detection threshold per epoch and phase (validation set)."""
 
     def _load_baseline(
         self, baseline: ModelConfig
@@ -183,6 +188,9 @@ class EvaluationCallback(pl.Callback):
             metrics |= self._metrics(self.baseline_scores, include_static=True)
         self.first_epoch_logged = True
         pl_module.log_dict(metrics)
+        self.thresholds[trainer.current_epoch] = {
+            phase: metrics[f"det_{phase}/threshold"] for phase in PHASES
+        }
 
         every = self.config.evaluation.plot_every_n_epochs
         if every and trainer.current_epoch % every == 0:
@@ -194,26 +202,39 @@ class EvaluationCallback(pl.Callback):
         )
         if mlflow_logger is None or mlflow_logger.run_id is None:
             return
-        names = {"": self.config.model.type}
+        model = self.config.model
+        start = (
+            "trained from scratch"
+            if model.pretrained is None
+            else f"fine-tuned from {model.weights_label()}"
+        )
+        names = {"": (f"{model.type}-{dataset_label(self.config)}", start)}
         if self.baseline is not None:
-            names[BASELINE] = f"baseline {self.baseline[0].variant()}"
+            baseline = self.baseline[0]
+            label = f"{baseline.type} ({baseline.weights_label()})"
+            names[BASELINE] = (label, "pretrained baseline")
         epoch = trainer.current_epoch
         for phase in PHASES:
             results = {
                 name: PhaseResult(
                     pick=merged[f"{prefix}pick_{phase}"],
                     detection=merged[f"{prefix}det_{phase}"],
+                    description=description,
                 )
-                for prefix, name in names.items()
+                for prefix, (name, description) in names.items()
             }
+            evaluation = self.config.evaluation
             figure = phase_figure(
-                f"{phase} phase, epoch {epoch}",
+                f"{phase} phase · validation · epoch {epoch}",
                 results,
                 self.config.data.sampling_rate,
-                self.config.evaluation.pick_window_s,
-                min(self.config.evaluation.test_tolerances_s),
+                evaluation.pick_window_s,
+                min(evaluation.test_tolerances_s),
+                evaluation.tolerance_s,
             )
-            self.frames[phase].append((f"epoch {epoch}", figure_to_png(figure)))
+            png = figure_to_png(figure)
+            self.figures[epoch][phase] = png
+            self.frames[phase].append((f"epoch {epoch}", png))
             # Rewritten every epoch; MLflow's own image slider shows 256 px
             # thumbnails only. The logger uses mlflow.get_tracking_uri(); so
             # does this client.

@@ -37,10 +37,12 @@ from seisbench_trainer.units import seconds_to_samples
 logger = logging.getLogger(__name__)
 
 
-def _callbacks(config: TrainConfig, checkpoint: ModelCheckpoint) -> list[Callback]:
+def _callbacks(
+    config: TrainConfig, evaluation: EvaluationCallback, checkpoint: ModelCheckpoint
+) -> list[Callback]:
     training = config.training
     callbacks: list[Callback] = [
-        EvaluationCallback(config),
+        evaluation,
         checkpoint,
         LearningRateMonitor(logging_interval="epoch"),
         RichProgressBar(),
@@ -123,6 +125,7 @@ def train(
     ) as run:
         run_id = run.info.run_id
         log_run_metadata(config)
+        evaluation = EvaluationCallback(config)
         checkpoint = ModelCheckpoint(
             dirpath=Path(config.training.checkpoint_dir) / run_id,
             filename="best",
@@ -141,7 +144,7 @@ def train(
                 run_id=run_id,
                 synchronous=False,
             ),
-            callbacks=[*_callbacks(config, checkpoint), *callbacks],
+            callbacks=[*_callbacks(config, evaluation, checkpoint), *callbacks],
             log_every_n_steps=min(50, len(train_loader)),
         )
         trainer.fit(module, train_loader, dev_loader)
@@ -154,7 +157,16 @@ def train(
         epoch = _load_best(module, best_path)
         best_score = checkpoint.best_model_score
         score = None if best_score is None else float(best_score)
-        model_id = log_seisbench_model(module.model, config, window, epoch, score)
+        thresholds = evaluation.thresholds.get(epoch, {})
+        model_id = log_seisbench_model(
+            module.model,
+            config,
+            window,
+            epoch,
+            score,
+            thresholds,
+            evaluation.figures.get(epoch, {}),
+        )
         if score is not None:
             mlflow.log_metric(
                 f"best_{config.training.selection_metric}",

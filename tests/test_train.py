@@ -110,6 +110,14 @@ def test_train_end_to_end(
     model = sbm.PhaseNet.load(exported[0].with_suffix(""))
     assert model.component_order == config.data.component_order
 
+    # thresholds selected on the validation set (logged as float32)
+    for phase in ("P", "S"):
+        value = model.default_args[f"{phase}_threshold"]
+        logged = client.get_metric_history(run_id, f"det_{phase}/threshold")
+        assert any(abs(value - m.value) < 1e-6 for m in logged)
+    figures = sorted(p.name for p in exported[0].parent.glob("*.png"))
+    assert figures and all(name.startswith("validation_") for name in figures)
+
 
 def test_failed_run_is_marked_failed(
     synthetic_path: Path,

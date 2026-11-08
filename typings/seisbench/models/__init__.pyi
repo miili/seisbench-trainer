@@ -29,6 +29,7 @@ class WaveformModel(SeisBenchModel):
     sampling_rate: float
     in_samples: int
     labels: str
+    default_args: dict[str, Any]
     @property
     def component_order(self) -> str: ...
     def annotate_batch_pre(self, batch: Tensor, argdict: dict[str, Any]) -> Tensor: ...

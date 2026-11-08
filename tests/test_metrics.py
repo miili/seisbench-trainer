@@ -207,10 +207,10 @@ def test_phase_figure_renders() -> None:
         pick=scores([0.9, 0.5], [0.2], residuals=[1.0, -3.0]),
         detection=scores([0.8, 0.0], [0.3], residuals=[2.0, NAN]),
     )
-    figure = phase_figure("P", {"model": result, "baseline": result}, 100.0, 2.0, 0.1)
-    table, *plots = figure.axes
-    assert table.get_legend() is None
-    assert all(axes.get_legend() is not None for axes in plots)
+    results = {"PhaseNet-Test": result, "PhaseNet (original)": result}
+    figure = phase_figure("P", results, 100.0, 2.0, 0.1, 0.5)
+    assert len(figure.axes) == 4
+    assert len(figure.legends) == 1  # one model key for the whole figure
     png = figure_to_png(figure)
     assert png.startswith(b"\x89PNG")
 
