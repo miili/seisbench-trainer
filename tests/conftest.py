@@ -34,6 +34,8 @@ def tracking_uri(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[st
     uri = f"sqlite:///{tmp_path / 'mlflow.db'}"
     monkeypatch.setenv("MLFLOW_TRACKING_URI", uri)
     mlflow.set_tracking_uri(uri)
+    # the active experiment is process-global; point it at the new store
+    mlflow.set_experiment(experiment_id="0")
     yield uri
 
 
