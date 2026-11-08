@@ -1,0 +1,69 @@
+[project]
+name = "seisbench-trainer"
+version = "0.1.0"
+description = "Training, evaluation and hyperparameter optimisation workbench for SeisBench phase pickers, tracked with MLflow"
+readme = "README.md"
+authors = [
+    { name = "miili", email = "marius.isken@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "lightning>=2.5",
+    "matplotlib>=3.10",
+    "mlflow>=3.7,<4",
+    "numpy>=2.0",
+    "pydantic>=2.11",
+    "rich>=14.0",
+    "scikit-learn>=1.6",
+    "scipy>=1.14",
+    "seisbench>=0.10",
+    "torch>=2.8",
+    "typer>=0.17",
+]
+
+[project.optional-dependencies]
+hpo = [
+    "optuna>=4.5",
+    "optuna-integration>=4.5",
+]
+
+[project.scripts]
+seisbench-trainer = "seisbench_trainer.cli:app"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.3",
+    "pyright[nodejs]>=1.1.400",
+    "pytest>=8.4",
+    "ruff>=0.13",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.22,<0.13.0"]
+build-backend = "uv_build"
+
+# Laptop development: CPU-only torch wheels. `pip install -e .` on the
+# cluster (conda) ignores this section.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ANN", "RUF"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

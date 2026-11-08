@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+
+# Training and tracking outputs
+mlruns/
+mlflow.db
+mlartifacts/
+checkpoints/
+lightning_logs/
+*.ckpt
