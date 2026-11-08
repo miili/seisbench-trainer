@@ -15,14 +15,12 @@ from seisbench_trainer.data import (
     SyntheticDataset,
 )
 from seisbench_trainer.data.augmentations import (
-    PHASE_COLUMNS,
-    PHASES,
-    Augmentation,
     eval_augmentations,
     train_augmentations,
 )
 from seisbench_trainer.data.config import AugmentationConfig
 from seisbench_trainer.data.loaders import load_splits, make_loader
+from seisbench_trainer.data.phases import PHASE_COLUMNS, PHASES, Augmentation
 
 WINDOW = 3001
 SAMPLING_RATE = 100.0

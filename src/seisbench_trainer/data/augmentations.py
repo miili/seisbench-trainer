@@ -5,40 +5,19 @@ Label augmentations depend on the model and are appended by the caller.
 
 import math
 import zlib
-from collections.abc import Callable
 from typing import Any
 
 import numpy as np
 import seisbench.generate as sbg
-from numpy.typing import NDArray
 
 from seisbench_trainer.data.config import AugmentationConfig
+from seisbench_trainer.data.phases import (
+    PHASE_COLUMNS,
+    PHASES,
+    Augmentation,
+    StateDict,
+)
 from seisbench_trainer.units import seconds_to_samples
-
-StateDict = dict[str, tuple[NDArray[Any], dict[str, Any] | None]]
-Augmentation = Callable[[StateDict], None]
-
-PHASES = ("P", "S")
-"""Phase order of the ``pick_samples`` batch key."""
-
-PHASE_COLUMNS: dict[str, str] = {
-    "trace_p_arrival_sample": "P",
-    "trace_pP_arrival_sample": "P",
-    "trace_P_arrival_sample": "P",
-    "trace_P1_arrival_sample": "P",
-    "trace_Pg_arrival_sample": "P",
-    "trace_Pn_arrival_sample": "P",
-    "trace_PmP_arrival_sample": "P",
-    "trace_pwP_arrival_sample": "P",
-    "trace_pwPm_arrival_sample": "P",
-    "trace_s_arrival_sample": "S",
-    "trace_S_arrival_sample": "S",
-    "trace_S1_arrival_sample": "S",
-    "trace_Sg_arrival_sample": "S",
-    "trace_SmS_arrival_sample": "S",
-    "trace_Sn_arrival_sample": "S",
-}
-"""Metadata pick columns and the phase each one labels."""
 
 
 def _pick_values(metadata: dict[str, Any], columns: list[str]) -> list[float]:

@@ -98,6 +98,9 @@ Known defects and limits in the reference code. Fix these when porting:
   metadata. It must also match the order used at inference. Pretrained
   SeisBench PhaseNet uses `ENZ`. When you evaluate a baseline, reorder the
   input channels to the baseline's `component_order`.
+  Fine-tuning must use the pretrained model's own order. A mismatch is an
+  error. The reference project fine-tuned the `ENZ` model on `ZNE` data,
+  which swaps the input channels; do not reproduce that.
 - **Label order:** the model's `labels` (for example `PSN`) decide which
   output channel is P, S or noise. Always map channels by name, never by
   a fixed index.

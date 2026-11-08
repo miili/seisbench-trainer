@@ -11,8 +11,8 @@ import torch
 from seisbench.util import worker_seeding
 from torch.utils.data import DataLoader
 
-from seisbench_trainer.data.augmentations import Augmentation
 from seisbench_trainer.data.config import DataConfig
+from seisbench_trainer.data.phases import Augmentation
 
 logger = logging.getLogger(__name__)
 
@@ -63,5 +63,8 @@ def make_loader(
         worker_init_fn=worker_seeding,
         persistent_workers=True,
         pin_memory=torch.cuda.is_available(),
+        # fork shares the preloaded waveforms with the workers (copy-on-write)
+        # instead of copying them; Python 3.14 no longer defaults to it.
+        multiprocessing_context="fork",
     )
     return cast(DataLoader[Batch], loader)

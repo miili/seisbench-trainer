@@ -34,13 +34,14 @@ src/seisbench_trainer/
   data/
     __init__.py          re-exports
     config.py            DataConfig, AugmentationConfig
+    phases.py            PHASES, PHASE_COLUMNS, augmentation types (no heavy imports)
     sources.py           SeisBenchDataset | LocalDataset | SyntheticDataset (tag "type"); each has .load()
     synthetic.py         write_synthetic_dataset(): noise plus P and S wavelets
     augmentations.py     train and validation pipelines
     loaders.py           split, concatenate, preload, DataLoaders
   models/
     __init__.py          ModelConfig = Annotated[PhaseNetConfig | ..., Field(discriminator="type")]
-    base.py              PickerModelConfig (ABC): build, label_augmentations, loss, phase_probabilities
+    base.py              PickerModelConfig (ABC): build, label_augmentations, forward, loss, phase_probabilities
     phasenet.py          PhaseNetConfig
     eqtransformer.py     EQTransformerConfig (step 10)
   training/
@@ -225,6 +226,22 @@ Tasks:
 - Tests: one forward and backward pass on CPU on the synthetic data; a
   pretrained `original` PhaseNet loads, and its component order is read
   correctly. Mark tests that need a download as skippable when offline.
+
+Status: done.
+
+- The base class has one more method than planned:
+  `forward(model, x) -> Tensor`. It returns probabilities as
+  (batch, channel, sample), so `loss` and `phase_probabilities` work on one
+  layout for every model family (PhaseNet calls `annotate_batch_pre` first,
+  as in the reference code).
+- A pretrained model must be fine-tuned on data in its own component
+  order and at its own sampling rate. A mismatch is an error, and the message
+  names the value to set (for example `original` needs `ENZ`). Feeding
+  another order would swap the input channels that the weights expect.
+- Shared constants (`PHASES`, `PHASE_COLUMNS`, `Augmentation`) live in
+  `data/phases.py`, which has no heavy imports.
+- DataLoaders start their workers with `fork` explicitly, so the workers
+  share the preloaded waveforms.
 
 ## Step 4: Training with minimal MLflow [FR-T2–T5, FR-L1–L4, FR-L6, FR-L7]
 

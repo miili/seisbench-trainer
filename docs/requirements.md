@@ -116,6 +116,7 @@ Fixed decisions:
     name or local path);
   - the label augmentations (for example EQTransformer also needs a
     detection label);
+  - the forward pass, returning probabilities as (batch, channel, sample);
   - the loss;
   - the mapping from model output to per-phase probability curves (P, S).
 - **FR-M3:** The input window length comes from the model (`in_samples`)
@@ -124,6 +125,9 @@ Fixed decisions:
   (`model.labels`, `model.component_order`). Never hard-code channel indices.
 - **FR-M5:** The saved model metadata must give the component order that the
   model was trained on. Check this before export.
+- **FR-M5a:** Fine-tuning keeps the pretrained model's component order and
+  sampling rate. If the data config differs, raise an error; never feed
+  swapped channels to pretrained weights.
 
 ### 3.4 Training
 
