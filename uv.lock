@@ -2864,6 +2864,8 @@ hpo = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "optuna" },
+    { name = "optuna-integration" },
     { name = "pandas-stubs" },
     { name = "pre-commit" },
     { name = "pyright", extra = ["nodejs"] },
@@ -2894,6 +2896,8 @@ provides-extras = ["hpo"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "optuna", specifier = ">=4.5" },
+    { name = "optuna-integration", specifier = ">=4.5" },
     { name = "pandas-stubs", specifier = ">=3.1.0.261029" },
     { name = "pre-commit", specifier = ">=4.3" },
     { name = "pyright", extras = ["nodejs"], specifier = ">=1.1.400" },

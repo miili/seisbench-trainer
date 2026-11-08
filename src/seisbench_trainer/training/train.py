@@ -1,6 +1,7 @@
 """Train one model from a run config and track it in MLflow."""
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
 
 import lightning.pytorch as pl
@@ -76,8 +77,18 @@ def _test(
         evaluate(loaded, config, "test", splits, prefix="baseline/")
 
 
-def train(config: TrainConfig) -> str:
-    """Train, log to MLflow and export the best model. Returns the run ID."""
+def train(
+    config: TrainConfig,
+    splits: Splits | None = None,
+    parent_run_id: str | None = None,
+    callbacks: Sequence[Callback] = (),
+) -> str:
+    """Train, log to MLflow and export the best model. Returns the run ID.
+
+    ``splits`` reuses already loaded data (HPO trials); they must match
+    ``config.data``. ``parent_run_id`` makes the run a child run, and
+    ``callbacks`` are added to the Lightning trainer.
+    """
     pl.seed_everything(config.training.seed, workers=True)
     module = PickerModule(config)
 
@@ -89,7 +100,8 @@ def train(config: TrainConfig) -> str:
         seconds_to_samples(augmentation.label_sigma_s, sampling_rate),
         augmentation.label_shape,
     )
-    splits = load_splits(config.data)
+    if splits is None:
+        splits = load_splits(config.data)
     train_loader = make_loader(
         splits.train,
         [*train_augmentations(augmentation, sampling_rate, window), *labels],
@@ -105,7 +117,9 @@ def train(config: TrainConfig) -> str:
 
     set_experiment(experiment_name(config))
     with mlflow.start_run(
-        run_name=config.tracking.run_name, log_system_metrics=True
+        run_name=config.tracking.run_name,
+        parent_run_id=parent_run_id,
+        log_system_metrics=True,
     ) as run:
         run_id = run.info.run_id
         log_run_metadata(config)
@@ -127,7 +141,7 @@ def train(config: TrainConfig) -> str:
                 run_id=run_id,
                 synchronous=False,
             ),
-            callbacks=_callbacks(config, checkpoint),
+            callbacks=[*_callbacks(config, checkpoint), *callbacks],
             log_every_n_steps=min(50, len(train_loader)),
         )
         trainer.fit(module, train_loader, dev_loader)

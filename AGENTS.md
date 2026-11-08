@@ -133,6 +133,7 @@ Known defects and limits in the reference code. Fix these when porting:
   partial stubs under `typings/seisbench/`. Extend the stubs, following
   seisbench's real signatures, when you use a new seisbench API; do not add
   `# type: ignore`.
+  `optuna_integration` is typed the same way, in `typings/optuna_integration/`.
 - Import seisbench (it pulls in torch) only where data or models are
   actually loaded, so that config handling and the CLI stay fast.
 - Tests use the in-package synthetic dataset; they must not download data.

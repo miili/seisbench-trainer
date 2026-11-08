@@ -59,6 +59,22 @@ at 0.1, 0.2 and 0.5 s tolerance. Results are linked to the model and the
 dataset in MLflow. Set `"evaluation": {"test_at_end": true}` to evaluate
 right after training.
 
+## Hyperparameter search
+
+Needs the optional extra: `pip install -e '.[hpo]'`. Add an `hpo` section
+to a run config (see `configs/bohemiasaxony-phasenet-hpo.json`): the study
+name, the journal file on the shared filesystem, the number of trials, the
+sampler, the pruner, and the parameters as dotted config paths.
+
+```bash
+uv run seisbench-trainer hpo configs/synthetic-hpo.json          # laptop
+sbatch --array=0-3 slurm/hpo_worker.sbatch configs/bohemiasaxony-phasenet-hpo.json
+```
+
+All workers join one Optuna study. In MLflow the study is a parent run
+(`hpo-<study>`, with the best trial and the Optuna plots) and each trial is
+a child run.
+
 ## Config
 
 `seisbench-trainer config --schema` prints the JSON schema. Choices between

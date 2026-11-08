@@ -1,0 +1,20 @@
+{
+  "data": {
+    "datasets": [{"type": "synthetic", "n_traces": 400}],
+    "batch_size": 32,
+    "num_workers": 2
+  },
+  "training": {"epochs": 3, "accelerator": "cpu"},
+  "evaluation": {"baseline": null, "plot_every_n_epochs": 0},
+  "tracking": {"tags": {"purpose": "smoke"}},
+  "hpo": {
+    "study_name": "synthetic-smoke",
+    "storage": "optuna/synthetic-smoke.journal",
+    "n_trials": 4,
+    "pruner": {"type": "median", "n_startup_trials": 2, "n_warmup_steps": 1},
+    "params": [
+      {"type": "float", "path": "training.optimizer.lr", "low": 1e-4, "high": 1e-2, "log": true},
+      {"type": "categorical", "path": "data.batch_size", "choices": [16, 32]}
+    ]
+  }
+}

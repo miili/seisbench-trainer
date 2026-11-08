@@ -458,6 +458,33 @@ Tasks:
 - Tests (skipped without the extra): a three-trial study on synthetic data,
   run as two worker processes, gives one parent run and three child runs.
 
+Status: done on the laptop (steps 7 and 8 are not done yet; HPO was moved
+ahead).
+
+- Search-space paths are checked when the config loads: each parameter's
+  example value (`low` or the first choice) is applied and the config is
+  validated again. Paths that would change the preloaded data or the
+  objective (`data.datasets`, `data.component_order`, `data.sampling_rate`,
+  `training.selection_*`) are rejected. Categorical choices are scalars;
+  switch the optimizer with `training.optimizer.type`.
+- `TrainConfig.with_values()` gives each trial's config (validated, no `hpo`
+  section). Trials always run with `evaluation.test_at_end` off.
+- Storage: `JournalStorage(JournalFileBackend(path, JournalFileOpenLock))`.
+  The O_EXCL lock works on NFS (the cluster home is NFS on VAST). A second
+  lock file (`<journal>.setup`) makes sure only one worker creates the
+  study's MLflow parent run; its ID is a study user attribute.
+- `train()` takes `splits`, `parent_run_id` and extra `callbacks`. Pruning
+  uses `optuna_integration.PyTorchLightningPruningCallback` (partial stub in
+  `typings/optuna_integration/`); a pruned trial's run is marked `KILLED`.
+- Workers stop with `MaxTrialsCallback` once `hpo.n_trials` trials have
+  finished (complete, pruned or failed). Each worker may start one trial
+  just before that, so a study can end with up to `workers - 1` extra trials.
+- After its last trial each worker updates the parent run: `best_trial.json`,
+  the `hpo.best_trial` tag, `best_<metric>`, and the Optuna matplotlib plots
+  under `optuna/`. The last worker marks the parent run `FINISHED`.
+- Checked on the laptop with two CLI workers sharing a folder-store MLflow
+  and one journal; the test does the same.
+
 ## Step 10: EQTransformer [FR-M1]
 
 Tasks:

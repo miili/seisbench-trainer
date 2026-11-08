@@ -34,6 +34,9 @@ seisbench-trainer = "seisbench_trainer.cli:app"
 
 [dependency-groups]
 dev = [
+    # the hpo extra, so pyright and the tests see optuna
+    "optuna>=4.5",
+    "optuna-integration>=4.5",
     "pandas-stubs>=3.1.0.261029",
     "pre-commit>=4.3",
     "pyright[nodejs]>=1.1.400",
