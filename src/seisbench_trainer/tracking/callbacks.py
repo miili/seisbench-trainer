@@ -211,6 +211,7 @@ class EvaluationCallback(pl.Callback):
                 results,
                 self.config.data.sampling_rate,
                 self.config.evaluation.pick_window_s,
+                min(self.config.evaluation.test_tolerances_s),
             )
             self.frames[phase].append((f"epoch {epoch}", figure_to_png(figure)))
             # Rewritten every epoch; MLflow's own image slider shows 256 px
