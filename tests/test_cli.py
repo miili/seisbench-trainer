@@ -20,6 +20,6 @@ def test_version() -> None:
 
 
 def test_metrics_table_rows() -> None:
-    metrics = {"det_P/f1": 0.8, "pick_P/mae_s": 0.02, "baseline_det_P/f1": 0.7}
+    metrics = {"det_P/f1": 0.8, "pick_P/mae_s": 0.02, "baseline/det_P/f1": 0.7}
     table = metrics_table(metrics, ("P", "S"))
     assert table.row_count == 2  # trained P and baseline P; no S metrics

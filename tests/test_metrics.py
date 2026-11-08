@@ -1,3 +1,5 @@
+import base64
+import json
 import warnings
 
 import numpy as np
@@ -13,7 +15,12 @@ from seisbench_trainer.metrics import (
     summarize,
     threshold_curve,
 )
-from seisbench_trainer.metrics.plots import PhaseResult, figure_to_array, phase_figure
+from seisbench_trainer.metrics.plots import (
+    PhaseResult,
+    figure_to_png,
+    phase_figure,
+    slider_page,
+)
 
 NAN = np.nan
 SAMPLES = 1000
@@ -201,6 +208,16 @@ def test_phase_figure_renders() -> None:
         detection=scores([0.8, 0.0], [0.3], residuals=[2.0, NAN]),
     )
     figure = phase_figure("P", {"model": result, "baseline": result}, 100.0, 2.0)
-    image = figure_to_array(figure)
-    assert image.ndim == 3 and image.shape[2] == 3
-    assert image.dtype == np.uint8
+    png = figure_to_png(figure)
+    assert png.startswith(b"\x89PNG")
+
+
+def test_slider_page_embeds_all_frames() -> None:
+    frames = [("epoch 0", b"\x89PNG-a"), ("epoch 1", b"\x89PNG-b")]
+    page = slider_page("P <phase>", frames)
+    assert "P &lt;phase&gt;" in page
+    assert 'max="1"' in page and 'value="1"' in page
+    payload = page.split("const frames = ")[1].split(";\n")[0]
+    embedded = json.loads(payload)
+    assert [label for label, _ in embedded] == ["epoch 0", "epoch 1"]
+    assert base64.b64decode(embedded[1][1]) == b"\x89PNG-b"

@@ -28,6 +28,7 @@ from seisbench_trainer.tracking.run import (
     log_run_metadata,
     log_seisbench_model,
     model_name,
+    set_experiment,
 )
 from seisbench_trainer.training.module import PickerModule
 from seisbench_trainer.units import seconds_to_samples
@@ -72,7 +73,7 @@ def _test(
         loaded = LoadedModel(
             baseline, baseline.load_pretrained(), f"baseline {baseline.variant()}"
         )
-        evaluate(loaded, config, "test", splits, prefix="baseline_")
+        evaluate(loaded, config, "test", splits, prefix="baseline/")
 
 
 def train(config: TrainConfig) -> str:
@@ -102,7 +103,7 @@ def train(config: TrainConfig) -> str:
         shuffle=False,
     )
 
-    mlflow.set_experiment(experiment_name(config))
+    set_experiment(experiment_name(config))
     with mlflow.start_run(
         run_name=config.tracking.run_name, log_system_metrics=True
     ) as run:
@@ -137,11 +138,13 @@ def train(config: TrainConfig) -> str:
         if not best_path:
             raise RuntimeError("training produced no checkpoint")
         epoch = _load_best(module, best_path)
-        model_id = log_seisbench_model(module.model, config, window, step=epoch)
-        if checkpoint.best_model_score is not None:
+        best_score = checkpoint.best_model_score
+        score = None if best_score is None else float(best_score)
+        model_id = log_seisbench_model(module.model, config, window, epoch, score)
+        if score is not None:
             mlflow.log_metric(
                 f"best_{config.training.selection_metric}",
-                float(checkpoint.best_model_score),
+                score,
                 step=epoch,
                 model_id=model_id,
             )

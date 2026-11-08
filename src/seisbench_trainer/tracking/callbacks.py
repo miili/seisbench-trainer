@@ -16,22 +16,33 @@ from torch import Tensor
 from seisbench_trainer.config import TrainConfig
 from seisbench_trainer.data.phases import PHASES
 from seisbench_trainer.metrics.picks import PickScores, detect_picks, pick_accuracy
-from seisbench_trainer.metrics.plots import PhaseResult, figure_to_array, phase_figure
+from seisbench_trainer.metrics.plots import (
+    PhaseResult,
+    figure_to_png,
+    phase_figure,
+    slider_page,
+)
 from seisbench_trainer.metrics.scores import summarize
 from seisbench_trainer.models import ModelConfig
 from seisbench_trainer.training.module import PickerModule
 from seisbench_trainer.units import seconds_to_samples
 
-BASELINE = "baseline_"
+BASELINE = "baseline/"
+"""Prefix of baseline metrics: one dashboard section for all of them."""
 
 
 class EvaluationCallback(pl.Callback):
     """Pick-accuracy (``pick_*``) and detection (``det_*``) metrics per epoch.
 
     Metrics are logged through the LightningModule, so they are available as
-    selection metric for checkpointing, early stopping and HPO. Figures are
-    logged to MLflow as step-indexed images. The optional baseline model gets
-    the prefix ``baseline_``.
+    selection metric for checkpointing, early stopping and HPO. The figures
+    of all epochs go into one HTML page per phase with an epoch slider
+    (``evaluation/validation_<phase>.html``).
+
+    The optional baseline has fixed weights and the validation windows are
+    deterministic, so it is evaluated once, in the first epoch: its metrics
+    (prefix ``baseline/``) are logged once and its scores are reused for the
+    figures. Counts that do not change between epochs are logged once too.
     """
 
     def __init__(self, config: TrainConfig) -> None:
@@ -49,6 +60,9 @@ class EvaluationCallback(pl.Callback):
         if evaluation.baseline is not None:
             self.baseline = self._load_baseline(evaluation.baseline)
         self.collected: dict[str, list[PickScores]] = defaultdict(list)
+        self.baseline_scores: dict[str, PickScores] | None = None
+        self.first_epoch_logged = False
+        self.frames: dict[str, list[tuple[str, bytes]]] = defaultdict(list)
 
     def _load_baseline(
         self, baseline: ModelConfig
@@ -115,12 +129,38 @@ class EvaluationCallback(pl.Callback):
         pick_array = picks.cpu().numpy()
         self._collect("", self.config.model, pl_module.model, pred, pick_array)
 
-        if self.baseline is not None:
+        if self.baseline is not None and self.baseline_scores is None:
             config, model, reorder = self.baseline
             model.to(x.device)
             with torch.no_grad():
                 baseline_pred = config.forward(model, x[:, reorder])
             self._collect(BASELINE, config, model, baseline_pred, pick_array)
+
+    def _metrics(
+        self, scores: dict[str, PickScores], include_static: bool
+    ) -> dict[str, float]:
+        evaluation = self.config.evaluation
+        pick_tolerances = evaluation.test_tolerances_s
+        # detection only matches picks within tolerance_s: wider fractions are 1
+        det_tolerances = [t for t in pick_tolerances if t < evaluation.tolerance_s]
+        metrics: dict[str, float] = {}
+        prefixes: set[str] = set()
+        for key, value in scores.items():
+            prefix = BASELINE if key.startswith(BASELINE) else ""
+            family = key.removeprefix(prefix).split("_")[0]
+            prefixes.add(prefix)
+            tolerances = det_tolerances if family == "det" else pick_tolerances
+            summary = summarize(value, self.config.data.sampling_rate, tolerances)
+            for name, number in summary.items():
+                static = name == "n_picks" or (
+                    family == "pick" and name == "n_negatives"
+                )
+                if include_static or not static:
+                    metrics[f"{key}/{name}"] = number
+        for prefix in prefixes:
+            f1 = [metrics[f"{prefix}det_{phase}/f1"] for phase in PHASES]
+            metrics[f"{prefix}det/f1_mean"] = float(np.mean(f1))
+        return metrics
 
     def on_validation_epoch_end(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
@@ -128,27 +168,25 @@ class EvaluationCallback(pl.Callback):
         if trainer.sanity_checking or not self.collected:
             self.collected.clear()
             return
-        data = self.config.data
-        tolerances = self.config.evaluation.test_tolerances_s
         merged = {
             key: PickScores.concatenate(parts) for key, parts in self.collected.items()
         }
         self.collected.clear()
+        trained = {k: v for k, v in merged.items() if not k.startswith(BASELINE)}
 
-        metrics: dict[str, float] = {}
-        for key, scores in merged.items():
-            for name, value in summarize(
-                scores, data.sampling_rate, tolerances
-            ).items():
-                metrics[f"{key}/{name}"] = value
-        for prefix in ("", BASELINE) if self.baseline else ("",):
-            f1 = [metrics[f"{prefix}det_{phase}/f1"] for phase in PHASES]
-            metrics[f"{prefix}det/f1_mean"] = float(np.mean(f1))
+        first = not self.first_epoch_logged
+        metrics = self._metrics(trained, include_static=first)
+        if self.baseline is not None and self.baseline_scores is None:
+            self.baseline_scores = {
+                k: v for k, v in merged.items() if k.startswith(BASELINE)
+            }
+            metrics |= self._metrics(self.baseline_scores, include_static=True)
+        self.first_epoch_logged = True
         pl_module.log_dict(metrics)
 
         every = self.config.evaluation.plot_every_n_epochs
         if every and trainer.current_epoch % every == 0:
-            self._log_figures(trainer, merged)
+            self._log_figures(trainer, trained | (self.baseline_scores or {}))
 
     def _log_figures(self, trainer: pl.Trainer, merged: dict[str, PickScores]) -> None:
         mlflow_logger = next(
@@ -174,10 +212,12 @@ class EvaluationCallback(pl.Callback):
                 self.config.data.sampling_rate,
                 self.config.evaluation.pick_window_s,
             )
-            # The logger was created with mlflow.get_tracking_uri(); so is this.
-            MlflowClient().log_image(  # pyright: ignore[reportUnknownMemberType]
+            self.frames[phase].append((f"epoch {epoch}", figure_to_png(figure)))
+            # Rewritten every epoch; MLflow's own image slider shows 256 px
+            # thumbnails only. The logger uses mlflow.get_tracking_uri(); so
+            # does this client.
+            MlflowClient().log_text(
                 mlflow_logger.run_id,
-                figure_to_array(figure),
-                key=f"evaluation_{phase}",
-                step=epoch,
+                slider_page(f"Validation, {phase} phase", self.frames[phase]),
+                f"evaluation/validation_{phase}.html",
             )

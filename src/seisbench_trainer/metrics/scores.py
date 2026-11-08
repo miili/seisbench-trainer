@@ -86,7 +86,7 @@ def residual_summary(
     if not finite.size:
         nan = float("nan")
         stats = dict.fromkeys(
-            ("mean_s", "median_s", "mae_s", "rms_s", "mad_s", "p05_s", "p95_s"), nan
+            ("mean_s", "median_s", "mae_s", "rms_s", "p05_s", "p95_s"), nan
         )
         return stats | {f"within_{t:g}s": nan for t in tolerances_s}
     median = float(np.median(finite))
@@ -95,7 +95,6 @@ def residual_summary(
         "median_s": median,
         "mae_s": float(np.mean(np.abs(finite))),
         "rms_s": float(np.sqrt(np.mean(finite**2))),
-        "mad_s": float(np.median(np.abs(finite - median))),
         "p05_s": float(np.percentile(finite, 5)),
         "p95_s": float(np.percentile(finite, 95)),
     }

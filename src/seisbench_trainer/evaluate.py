@@ -271,9 +271,10 @@ def evaluate(
 
     for key, value in metrics.items():
         mlflow.log_metric(key, value, model_id=loaded.model_id, dataset=dataset)
-    mlflow.log_table(
-        pd.DataFrame([asdict(row) for row in rows]),
-        artifact_file=f"evaluation/{prefix}{split}_summary.json",
+    # CSV, because the MLflow UI renders .csv as a table and .json as raw text.
+    mlflow.log_text(
+        pd.DataFrame([asdict(row) for row in rows]).to_csv(index=False),
+        f"evaluation/{prefix}{split}_summary.csv",
     )
     logger.info("Evaluated %s on %s/%s", loaded.name, label, split)
     return rows

@@ -1,11 +1,13 @@
 """Evaluation figures. Uses the object-oriented matplotlib API (no pyplot)."""
 
+import base64
+import html
+import io
+import json
 from dataclasses import dataclass
 
 import numpy as np
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
-from numpy.typing import NDArray
 
 from seisbench_trainer.metrics.picks import PickScores
 from seisbench_trainer.metrics.scores import roc_auc, roc_curve, threshold_curve
@@ -88,8 +90,51 @@ def phase_figure(
     return figure
 
 
-def figure_to_array(figure: Figure) -> NDArray[np.uint8]:
-    """Render a figure to an RGB array (for ``MlflowClient.log_image``)."""
-    canvas = FigureCanvasAgg(figure)
-    canvas.draw()
-    return np.asarray(canvas.buffer_rgba())[..., :3].copy()
+def figure_to_png(figure: Figure) -> bytes:
+    """Render a figure to PNG bytes."""
+    buffer = io.BytesIO()
+    figure.savefig(buffer, format="png")  # pyright: ignore[reportUnknownMemberType]
+    return buffer.getvalue()
+
+
+SLIDER_PAGE = """<!doctype html>
+<html><head><meta charset="utf-8"><title>{title}</title>
+<style>
+body {{ font: 14px sans-serif; margin: 12px; background: #fff; color: #222; }}
+.bar {{ display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }}
+input[type=range] {{ flex: 1; }}
+img {{ max-width: 100%; }}
+</style></head><body>
+<div class="bar"><b>{title}</b><input id="s" type="range" min="0" max="{last}"
+value="{last}"><span id="l"></span></div>
+<img id="i" alt="evaluation figure">
+<script>
+const frames = {frames};
+const s = document.getElementById("s"), i = document.getElementById("i"),
+  l = document.getElementById("l");
+function show() {{
+  const f = frames[s.value];
+  i.src = "data:image/png;base64," + f[1];
+  l.textContent = f[0];
+}}
+s.oninput = show;
+document.onkeydown = (e) => {{
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {{
+    s.value = +s.value + (e.key === "ArrowRight" ? 1 : -1); show();
+  }}
+}};
+show();
+</script></body></html>
+"""
+
+
+def slider_page(title: str, frames: list[tuple[str, bytes]]) -> str:
+    """Self-contained HTML page showing PNG frames with a slider.
+
+    ``frames`` are (label, PNG) pairs, e.g. one per epoch. The images are
+    embedded, so the page works in MLflow's sandboxed artifact viewer.
+    """
+    encoded = [(label, base64.b64encode(png).decode()) for label, png in frames]
+    return SLIDER_PAGE.format(
+        title=html.escape(title), last=len(frames) - 1, frames=json.dumps(encoded)
+    )

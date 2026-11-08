@@ -139,9 +139,16 @@ Known defects and limits in the reference code. Fix these when porting:
   Tests that need the pretrained `original` PhaseNet skip when it can't be
   downloaded; otherwise set `evaluation.baseline` to `null` in test configs.
 - Metric names follow `{family}_{phase}/{name}` (`pick_P/mae_s`,
-  `det_S/f1`), with the prefix `baseline_` for the baseline and
-  `det/f1_mean` for the mean of the P and S F1. Keep this scheme; the CLI
-  table and the selection metric rely on it.
+  `det_S/f1`), and `det/f1_mean` is the mean of the P and S F1. Baseline
+  metrics use the prefix `baseline/`, so they form one dashboard section.
+  Test metrics are `test_…` and `baseline/test_…`. Keep this scheme; the
+  CLI table and the selection metric rely on it.
+- Do not log values every epoch that cannot change between epochs. The
+  baseline (fixed weights, deterministic validation windows) and the
+  counts are logged once.
+- MLflow 3's UI treats experiments without the `mlflow.experimentKind` tag
+  as GenAI. Create experiments with `tracking.run.set_experiment()`, which
+  tags them `custom_model_development`.
 - Tests: `uv run pytest`. Use a small SeisBench dataset, or a synthetic
   in-memory `WaveformDataset`, with a CPU-only short run. Tests must not
   download large datasets.

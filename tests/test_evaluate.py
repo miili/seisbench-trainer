@@ -1,10 +1,12 @@
+import io
 from pathlib import Path
 
 import mlflow
+import pandas as pd
 import pytest
 import seisbench.models as sbm
 from conftest import small_config
-from mlflow.artifacts import load_dict
+from mlflow.artifacts import load_text
 from pydantic import ValidationError
 from typer.testing import CliRunner
 
@@ -70,8 +72,10 @@ def test_evaluate_logs_metrics_table_and_dataset(
         "test_det_S/tol0.5s/mae_s",
         "test_pick_S/mae_s",
     } <= set(metrics)
-    table = load_dict(f"runs:/{run.info.run_id}/evaluation/test_summary.json")
-    assert len(table["data"]) == len(rows)
+    csv = load_text(f"runs:/{run.info.run_id}/evaluation/test_summary.csv")
+    table = pd.read_csv(io.StringIO(csv))
+    assert len(table) == len(rows)
+    assert list(table.columns[:3]) == ["model", "phase", "tolerance_s"]
     assert finished.inputs is not None
     inputs = finished.inputs.dataset_inputs
     assert [i.dataset.name for i in inputs] == [f"{synthetic_path.name}/test"]

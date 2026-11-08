@@ -80,7 +80,10 @@ rate. For example, `original` needs `ENZ`.
 - metrics per epoch and system metrics;
 - `config.json`, flattened params, and tags (git commit, package versions,
   host, Slurm IDs);
-- the best model as an MLflow logged model, with the SeisBench `.json`/`.pt`
+- `evaluation/validation_P.html` and `validation_S.html`: the validation
+  figures of all epochs with a slider (open them in the Artifacts tab);
+- the best model as an MLflow logged model named
+  `<model>-<datasets>-<variant>`, with the SeisBench `.json`/`.pt`
   pair under `extra_files/`; it loads with `seisbench.models.PhaseNet.load()`
   and can be used directly in Qseek.
 

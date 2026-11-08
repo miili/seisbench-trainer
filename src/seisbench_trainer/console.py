@@ -44,7 +44,7 @@ def metrics_table(metrics: dict[str, float], phases: tuple[str, ...]) -> Table:
     table.add_column("phase")
     for header, _ in SUMMARY_COLUMNS:
         table.add_column(header, justify="right")
-    for prefix, name in (("", "trained"), ("baseline_", "baseline")):
+    for prefix, name in (("", "trained"), ("baseline/", "baseline")):
         for phase in phases:
             keys = [prefix + key.format(phase=phase) for _, key in SUMMARY_COLUMNS]
             if not any(key in metrics for key in keys):

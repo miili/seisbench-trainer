@@ -121,7 +121,7 @@ def evaluate_command(
     import mlflow
 
     from seisbench_trainer.evaluate import evaluate, load_model, parse_dataset
-    from seisbench_trainer.tracking.run import experiment_name
+    from seisbench_trainer.tracking.run import experiment_name, set_experiment
 
     loaded = load_model(model)
     if config_path is not None:
@@ -133,7 +133,7 @@ def evaluate_command(
         settings = settings.model_copy(
             update={"data": settings.data.model_copy(update={"datasets": sources})}
         )
-    mlflow.set_experiment(experiment or experiment_name(settings))
+    set_experiment(experiment or experiment_name(settings))
     tags = {"purpose": "evaluation", "model_ref": model, "split": split}
     with mlflow.start_run(run_name=f"eval-{loaded.name}", tags=tags) as run:
         rows = evaluate(loaded, settings, split)

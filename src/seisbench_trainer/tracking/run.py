@@ -1,6 +1,7 @@
 """Run metadata and model export to MLflow."""
 
 import os
+import re
 import socket
 import subprocess
 from importlib.metadata import version
@@ -18,6 +19,9 @@ from pydantic import JsonValue
 from seisbench_trainer.config import TrainConfig
 
 TRACKED_PACKAGES = ("seisbench-trainer", "seisbench", "torch", "lightning", "mlflow")
+EXPERIMENT_KIND = "mlflow.experimentKind"
+MODEL_TRAINING = "custom_model_development"
+DESCRIPTION = "mlflow.note.content"
 SLURM_VARIABLES = ("SLURM_JOB_ID", "SLURM_ARRAY_JOB_ID", "SLURM_ARRAY_TASK_ID")
 
 
@@ -30,9 +34,48 @@ def experiment_name(config: TrainConfig) -> str:
     return config.tracking.experiment or f"{dataset_label(config)}/{config.model.type}"
 
 
+def set_experiment(name: str) -> str:
+    """Activate (or create) an experiment and mark it as model training.
+
+    Without the kind tag, the MLflow 3 UI may show it as a GenAI experiment.
+    Returns the experiment ID.
+    """
+    experiment = mlflow.set_experiment(name)
+    if experiment.tags.get(EXPERIMENT_KIND) != MODEL_TRAINING:
+        mlflow.set_experiment_tag(EXPERIMENT_KIND, MODEL_TRAINING)
+    return experiment.experiment_id
+
+
 def model_name(config: TrainConfig) -> str:
-    """SeisBench export name: ``<model>-<datasets>-<variant>``."""
-    return f"{config.model.type}-{dataset_label(config)}-{config.model.variant()}"
+    """Model name: ``<model>-<datasets>-<variant>``.
+
+    Used for the MLflow LoggedModel and the SeisBench export files, so the
+    characters MLflow forbids in model names are replaced.
+    """
+    name = f"{config.model.type}-{dataset_label(config)}-{config.model.variant()}"
+    return re.sub(r"[/:.%\"']", "-", name)
+
+
+def model_description(
+    config: TrainConfig, window_samples: int, epoch: int, score: float | None
+) -> str:
+    """Markdown description of a trained model, shown in the MLflow UI."""
+    data = config.data
+    start = (
+        "trained from scratch"
+        if config.model.pretrained is None
+        else f"fine-tuned from `{config.model.pretrained}`"
+    )
+    selection = config.training.selection_metric
+    best = f"`{selection}` = {score:.4g}" if score is not None else f"`{selection}`"
+    return (
+        f"{config.model.type} {start} on {dataset_label(config)}.\n\n"
+        f"- Input: {data.component_order}, {data.sampling_rate:g} Hz, "
+        f"{window_samples} samples\n"
+        f"- Best epoch {epoch} by {best}\n"
+        f"- SeisBench export in `extra_files/`: "
+        f'`seisbench.models.{config.model.type}.load("{model_name(config)}")`'
+    )
 
 
 def flatten(value: JsonValue, prefix: str = "") -> dict[str, str]:
@@ -118,7 +161,11 @@ def log_run_metadata(config: TrainConfig) -> None:
 
 
 def log_seisbench_model(
-    model: sbm.WaveformModel, config: TrainConfig, window_samples: int, step: int
+    model: sbm.WaveformModel,
+    config: TrainConfig,
+    window_samples: int,
+    step: int,
+    score: float | None = None,
 ) -> str:
     """Log the model as an MLflow LoggedModel with its SeisBench export attached.
 
@@ -138,9 +185,11 @@ def log_seisbench_model(
         model.save(path)
         files = [str(path.with_suffix(suffix)) for suffix in (".json", ".pt")]
         requirements = [f"{name}=={version(name)}" for name in ("seisbench", "torch")]
+        description = model_description(config, window_samples, step, score)
         info = log_model(
             model,
-            name="model",
+            name=model_name(config),
+            tags={DESCRIPTION: description, "variant": config.model.variant()},
             input_example=input_example,
             extra_files=files,
             pip_requirements=requirements,  # skips slow requirement inference

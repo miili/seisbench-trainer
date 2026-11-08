@@ -329,14 +329,28 @@ open.
 
 - Metric names: `{family}_{phase}/{name}`, where the family is `pick`
   (window-based) or `det` (detection). The baseline adds the prefix
-  `baseline_`. `det/f1_mean` is the mean of the P and S F1, usable as
+  `baseline/`, so it forms one dashboard section. It is evaluated once, in
+  the first epoch, because its weights and the validation windows are
+  fixed; the cached scores are reused for the figures. `n_picks` and the
+  window `n_negatives` are logged once as well. `mad_s` was dropped (it is
+  quantised to the sample interval), and so were the detection `within_*`
+  fractions at or above the matching tolerance (always 1). Experiments are
+  tagged `mlflow.experimentKind=custom_model_development`, so the MLflow 3
+  UI does not treat them as GenAI. `det/f1_mean` is the mean of the P and S
+  F1, usable as
   `training.selection_metric` (with `selection_mode: "max"`).
 - Metrics go through `pl_module.log_dict`, so checkpointing, early stopping
-  and (later) HPO can use them. Figures go through `MlflowClient.log_image`
-  with `step=epoch`.
-- One figure per phase and epoch (`evaluation_P`, `evaluation_S`): residual
-  histogram, P/R/F1 against threshold, and ROC, with the baseline overlaid.
-  It replaces the reference project's 4 separate figures per phase.
+  and (later) HPO can use them.
+- One figure per phase and epoch: residual histogram, P/R/F1 against
+  threshold, and ROC, with the baseline overlaid. It replaces the reference
+  project's 4 separate figures per phase. All epochs go into one
+  self-contained HTML page per phase with an epoch slider
+  (`evaluation/validation_{P,S}.html`, rewritten every epoch). MLflow's own
+  image slider (`log_image` with `step`) shows only 256 px thumbnails and
+  prints all run params on each card, so it is not used.
+- The logged model is named `<model>-<datasets>-<variant>` (the export name)
+  and has a Markdown description (`mlflow.note.content`): input, best
+  epoch and score, how to load the SeisBench export.
 - `evaluation.baseline` is now a model config
   (`{"type": "PhaseNet", "pretrained": "original"}`), loaded with the new
   `load_pretrained()` and fed in its own component order.
@@ -379,10 +393,10 @@ Status: done on the laptop.
   `{prefix}{split}_det_{phase}/tol{t}s/{precision,recall,f1,mae_s,...}`,
   plus `{split}_det_{phase}/threshold`. They are logged with `model_id` and
   an MLflow dataset (name `<datasets>/<split>`, digest of the trace names),
-  and the summary goes to `evaluation/{prefix}{split}_summary.json`
-  (`log_table`).
+  and the summary goes to `evaluation/{prefix}{split}_summary.csv` (CSV, so
+  the UI renders it as a table; `log_table` JSON shows as raw text).
 - `evaluation.test_at_end` evaluates the best model and the baseline
-  (prefix `baseline_`) inside the training run, reusing the loaded splits.
+  (prefix `baseline/`) inside the training run, reusing the loaded splits.
   The `evaluate` command creates its own run (tag `purpose=evaluation`).
   `slurm/evaluate.sbatch` runs it on a GPU node.
 - Training runs record no dataset input yet (FR-D6); evaluation does.

@@ -5,7 +5,7 @@ import pytest
 import seisbench.models as sbm
 from conftest import small_config
 from mlflow import MlflowClient
-from mlflow.artifacts import download_artifacts, list_artifacts, load_dict
+from mlflow.artifacts import download_artifacts, list_artifacts, load_dict, load_text
 from pydantic import JsonValue
 
 from seisbench_trainer.config import TrainConfig
@@ -41,6 +41,9 @@ def test_read_git_head(tmp_path: Path) -> None:
 def test_model_name(synthetic_path: Path, tmp_path: Path) -> None:
     config = small_config(synthetic_path, tmp_path, epochs=1)
     assert model_name(config) == f"PhaseNet-{synthetic_path.name}-scratch"
+    weights = config.model.model_copy(update={"pretrained": "/x/my.model:v1"})
+    dotted = config.model_copy(update={"model": weights})
+    assert model_name(dotted) == f"PhaseNet-{synthetic_path.name}-from--x-my-model-v1"
 
 
 def test_train_end_to_end(
@@ -62,9 +65,17 @@ def test_train_end_to_end(
     expected = ("pick_P/mae_s", "pick_S/auc", "det_P/f1", "det_S/recall", "det/f1_mean")
     for key in expected:
         assert len(client.get_metric_history(run_id, key)) == 2, key
-    assert not any(key.startswith("baseline_") for key in run.data.metrics)
-    images = list_artifacts(run_id=run_id, artifact_path="images")
-    assert images, "no evaluation figures logged"
+    assert not any(key.startswith("baseline") for key in run.data.metrics)
+    assert len(client.get_metric_history(run_id, "pick_P/n_picks")) == 1
+    assert len(client.get_metric_history(run_id, "det_P/n_negatives")) == 2
+    assert "det_P/within_0.5s" not in run.data.metrics
+    assert "pick_P/within_0.5s" in run.data.metrics
+    tags = client.get_experiment(run.info.experiment_id).tags
+    assert tags["mlflow.experimentKind"] == "custom_model_development"
+    pages = {a.path for a in list_artifacts(run_id=run_id, artifact_path="evaluation")}
+    assert pages == {"evaluation/validation_P.html", "evaluation/validation_S.html"}
+    page = load_text(f"runs:/{run_id}/evaluation/validation_P.html")
+    assert page.count('"epoch ') == 2
 
     # config artifact, params and tags reproduce the run
     logged = load_dict(f"runs:/{run_id}/config.json")
@@ -84,6 +95,10 @@ def test_train_end_to_end(
     )
     assert len(models) == 1
     assert models[0].source_run_id == run_id
+    assert models[0].name == model_name(config)
+    description = models[0].tags["mlflow.note.content"]
+    assert "trained from scratch" in description
+    assert "Best epoch" in description and "val_loss" in description
     download = Path(
         download_artifacts(
             f"models:/{models[0].model_id}", dst_path=str(tmp_path / "download")
@@ -123,7 +138,7 @@ def test_train_with_baseline_and_detection_selection(
     config = small_config(
         synthetic_path,
         tmp_path,
-        epochs=1,
+        epochs=2,
         evaluation={"plot_every_n_epochs": 0},
     )
     config = config.model_copy(
@@ -136,9 +151,13 @@ def test_train_with_baseline_and_detection_selection(
             ),
         }
     )
-    run = MlflowClient().get_run(train(config))
-    metrics = run.data.metrics
+    run_id = train(config)
+    client = MlflowClient()
+    metrics = client.get_run(run_id).data.metrics
     assert "best_det/f1_mean" in metrics
-    baseline = {"baseline_det_P/f1", "baseline_pick_S/mae_s", "baseline_det/f1_mean"}
+    baseline = {"baseline/det_P/f1", "baseline/pick_S/mae_s", "baseline/det/f1_mean"}
     assert baseline <= set(metrics)
-    assert not list_artifacts(run_id=run.info.run_id, artifact_path="images")
+    # the fixed baseline is evaluated and logged once; the model every epoch
+    assert len(client.get_metric_history(run_id, "baseline/det_P/f1")) == 1
+    assert len(client.get_metric_history(run_id, "det_P/f1")) == 2
+    assert not list_artifacts(run_id=run_id, artifact_path="evaluation")
