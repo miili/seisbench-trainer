@@ -1,0 +1,9 @@
+{
+  "data": {
+    "datasets": [{"type": "synthetic", "n_traces": 400}],
+    "batch_size": 32,
+    "num_workers": 2
+  },
+  "training": {"epochs": 3, "accelerator": "cpu"},
+  "tracking": {"tags": {"purpose": "smoke"}}
+}

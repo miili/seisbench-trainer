@@ -121,3 +121,12 @@ def test_cli_config_schema() -> None:
     assert result.exit_code == 0
     schema = json.loads(result.output)
     assert {"PhaseNetConfig", "SeisBenchDataset", "AdamConfig"} <= set(schema["$defs"])
+
+
+@pytest.mark.parametrize(
+    "path",
+    sorted((Path(__file__).parents[1] / "configs").glob("*.json")),
+    ids=lambda path: path.name,
+)
+def test_example_configs_are_valid(path: Path) -> None:
+    load_config(path)

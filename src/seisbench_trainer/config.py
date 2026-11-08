@@ -36,6 +36,11 @@ class TrainingConfig(StrictModel):
     )
     optimizer: OptimizerConfig = Field(default_factory=AdamConfig)
     scheduler: SchedulerConfig | None = None
+    checkpoint_dir: Path = Field(
+        default=Path("checkpoints"),
+        description="Local or scratch directory for Lightning checkpoints. "
+        "They are not uploaded to MLflow.",
+    )
 
 
 class EvaluationConfig(StrictModel):

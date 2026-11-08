@@ -22,6 +22,9 @@ class PhaseNetConfig(PickerModelConfig):
         "None trains from scratch.",
     )
 
+    def variant(self) -> str:
+        return "scratch" if self.pretrained is None else f"from-{self.pretrained}"
+
     def build(self, component_order: str, sampling_rate: float) -> "sbm.PhaseNet":
         import seisbench.models as sbm
 

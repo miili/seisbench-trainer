@@ -275,6 +275,25 @@ Tasks:
   run on BohemiaSaxony. Check the time per epoch and GPU use [NFR-4], and
   `df -T` on the shared filesystem.
 
+Status: done on the laptop. The cluster run is still open.
+
+- The run is started with `mlflow.start_run(log_system_metrics=True)`, and
+  Lightning's `MLFlowLogger` (asynchronous) logs into it through `run_id`.
+  The context marks failed runs `FAILED`. The `train` command turns SIGTERM
+  (Slurm cancel or timeout) into an exception for the same reason.
+- `MLFlowLogger` must get `tracking_uri=mlflow.get_tracking_uri()`: its
+  default reads the environment when Lightning is imported and falls back to
+  `file:./mlruns`.
+- The LoggedModel uses the default `pt2` format (torch.export works for
+  PhaseNet). Explicit `pip_requirements` skip MLflow's slow requirement
+  inference.
+- Checked on the laptop against both a SQLite store and the folder store
+  (`MLFLOW_ALLOW_FILE_STORE=true`). Same seed, same losses.
+- Added `psutil` and `nvidia-ml-py` for system metrics; example configs in
+  `configs/`; `slurm/train.sbatch`; a README.
+- Still to do on the cluster: the conda env, one BohemiaSaxony run, the
+  time per epoch and GPU use, and `df -T`.
+
 ## Step 5: Evaluation metrics and the MLflow callback [FR-E1–E4, FR-E6]
 
 Tasks:

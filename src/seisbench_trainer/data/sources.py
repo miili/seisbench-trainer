@@ -44,6 +44,10 @@ class SeisBenchDataset(StrictModel):
         'e.g. "source_magnitude > 1".',
     )
 
+    def label(self) -> str:
+        """Short name for experiment and model names."""
+        return self.name
+
     def load(self, component_order: str, sampling_rate: float) -> "sbd.WaveformDataset":
         import seisbench.data as sbd
 
@@ -69,6 +73,10 @@ class LocalDataset(StrictModel):
         description="Optional pandas query on the metadata to select traces.",
     )
 
+    def label(self) -> str:
+        """Short name for experiment and model names."""
+        return self.path.name
+
     def load(self, component_order: str, sampling_rate: float) -> "sbd.WaveformDataset":
         import seisbench.data as sbd
 
@@ -91,6 +99,10 @@ class SyntheticDataset(StrictModel):
     noise_fraction: float = Field(default=0.1, ge=0.0, lt=1.0)
     seed: NonNegativeInt = 0
     query: str | None = None
+
+    def label(self) -> str:
+        """Short name for experiment and model names."""
+        return "synthetic"
 
     def path(self) -> Path:
         """Cache directory, unique for the generation parameters."""

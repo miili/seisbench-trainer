@@ -121,6 +121,10 @@ Known defects and limits in the reference code. Fix these when porting:
 - Source layout: `src/seisbench_trainer/`.
 - Install the environment: `uv sync`
 - Run the entry point: `uv run seisbench-trainer ...`
+- Laptop smoke run: `uv run seisbench-trainer train configs/synthetic-smoke.json`
+  (synthetic data, CPU, under a minute; writes to `./mlflow.db`).
+- Every file in `configs/` is validated by the tests; keep them valid when
+  the config schema changes.
 - Lint, format and type-check:
   `uv run pre-commit run --all-files` (ruff check, ruff format, pyright).
 - Full type annotations are required everywhere (pyright `strict`). Relax

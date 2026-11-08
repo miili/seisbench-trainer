@@ -49,6 +49,10 @@ class PickerModelConfig(StrictModel, ABC):
         """Per-phase probability curves (batch, sample), looked up by label."""
         return {phase: pred[:, model.labels.index(phase)] for phase in PHASES}
 
+    def variant(self) -> str:
+        """Short description of the starting weights, e.g. 'scratch'."""
+        return "scratch"
+
     def window_samples(self, model: "sbm.WaveformModel") -> int:
         """Default input window length."""
         return model.in_samples

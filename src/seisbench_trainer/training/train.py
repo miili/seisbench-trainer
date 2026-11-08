@@ -1,0 +1,131 @@
+"""Train one model from a run config and track it in MLflow."""
+
+import logging
+from pathlib import Path
+
+import lightning.pytorch as pl
+import mlflow
+import torch
+from lightning.pytorch.callbacks import (
+    Callback,
+    EarlyStopping,
+    LearningRateMonitor,
+    ModelCheckpoint,
+    RichProgressBar,
+)
+from lightning.pytorch.loggers import MLFlowLogger
+
+from seisbench_trainer.config import TrainConfig
+from seisbench_trainer.data.augmentations import (
+    eval_augmentations,
+    train_augmentations,
+)
+from seisbench_trainer.data.loaders import load_splits, make_loader
+from seisbench_trainer.tracking.run import (
+    experiment_name,
+    log_run_metadata,
+    log_seisbench_model,
+)
+from seisbench_trainer.training.module import PickerModule
+from seisbench_trainer.units import seconds_to_samples
+
+logger = logging.getLogger(__name__)
+
+
+def _callbacks(config: TrainConfig, checkpoint: ModelCheckpoint) -> list[Callback]:
+    training = config.training
+    callbacks: list[Callback] = [
+        checkpoint,
+        LearningRateMonitor(logging_interval="epoch"),
+        RichProgressBar(),
+    ]
+    if training.early_stopping_patience is not None:
+        callbacks.append(
+            EarlyStopping(
+                monitor=training.selection_metric,
+                mode=training.selection_mode,
+                patience=training.early_stopping_patience,
+            )
+        )
+    return callbacks
+
+
+def _load_best(module: PickerModule, checkpoint_path: str) -> int:
+    """Load the best checkpoint's weights into the module; return its epoch."""
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    module.load_state_dict(checkpoint["state_dict"])
+    return int(checkpoint["epoch"])
+
+
+def train(config: TrainConfig) -> str:
+    """Train, log to MLflow and export the best model. Returns the run ID."""
+    pl.seed_everything(config.training.seed, workers=True)
+    module = PickerModule(config)
+
+    augmentation = config.augmentation
+    sampling_rate = config.data.sampling_rate
+    window = module.window_samples
+    labels = config.model.label_augmentations(
+        module.model,
+        seconds_to_samples(augmentation.label_sigma_s, sampling_rate),
+        augmentation.label_shape,
+    )
+    splits = load_splits(config.data)
+    train_loader = make_loader(
+        splits.train,
+        [*train_augmentations(augmentation, sampling_rate, window), *labels],
+        config.data,
+        shuffle=True,
+    )
+    dev_loader = make_loader(
+        splits.dev,
+        [*eval_augmentations(augmentation, window, config.training.seed), *labels],
+        config.data,
+        shuffle=False,
+    )
+
+    mlflow.set_experiment(experiment_name(config))
+    with mlflow.start_run(
+        run_name=config.tracking.run_name, log_system_metrics=True
+    ) as run:
+        run_id = run.info.run_id
+        log_run_metadata(config)
+        checkpoint = ModelCheckpoint(
+            dirpath=Path(config.training.checkpoint_dir) / run_id,
+            filename="best",
+            monitor=config.training.selection_metric,
+            mode=config.training.selection_mode,
+            save_weights_only=True,
+        )
+        trainer = pl.Trainer(
+            max_epochs=config.training.epochs,
+            accelerator=config.training.accelerator,
+            devices=1,
+            precision=config.training.precision,
+            # MLFlowLogger's default URI ignores mlflow.set_tracking_uri().
+            logger=MLFlowLogger(
+                tracking_uri=mlflow.get_tracking_uri(),
+                run_id=run_id,
+                synchronous=False,
+            ),
+            callbacks=_callbacks(config, checkpoint),
+            log_every_n_steps=min(50, len(train_loader)),
+        )
+        trainer.fit(module, train_loader, dev_loader)
+        mlflow.flush_async_logging()
+
+        # Lightning types this attribute loosely; it is the checkpoint path.
+        best_path = str(checkpoint.best_model_path)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        if not best_path:
+            raise RuntimeError("training produced no checkpoint")
+        epoch = _load_best(module, best_path)
+        model_id = log_seisbench_model(module.model, config, window, step=epoch)
+        if checkpoint.best_model_score is not None:
+            mlflow.log_metric(
+                f"best_{config.training.selection_metric}",
+                float(checkpoint.best_model_score),
+                step=epoch,
+                model_id=model_id,
+            )
+        logger.info("Run %s finished; best epoch %d, model %s", run_id, epoch, model_id)
+    return run_id
