@@ -193,6 +193,9 @@ def log_seisbench_model(
             input_example=input_example,
             extra_files=files,
             pip_requirements=requirements,  # skips slow requirement inference
+            # pt2 (torch.export) files load only on the device they were saved
+            # on; a pickled model loads on CPU and GPU nodes alike.
+            serialization_format="pickle",
             step=step,
         )
     return info.model_id

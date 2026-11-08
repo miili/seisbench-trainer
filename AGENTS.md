@@ -158,8 +158,9 @@ Known defects and limits in the reference code. Fix these when porting:
   `MLFLOW_ALLOW_FILE_STORE=true` is set. The cluster uses that folder store
   on the shared filesystem (decision D-1 in `docs/requirements.md`). Never
   use SQLite on the shared filesystem.
-- `mlflow.pytorch.log_model` uses the `pt2` format by default in 3.18 and
-  then requires an `input_example`.
+- `mlflow.pytorch.log_model` uses the `pt2` format by default in 3.18. A
+  `pt2` model saved from CPU weights cannot be loaded on a GPU node, so we
+  log with `serialization_format="pickle"` (plus an `input_example`).
 - The cluster uses conda. Do not assume `uv` in the Slurm scripts.
 
 ## Working rules

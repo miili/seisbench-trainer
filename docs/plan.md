@@ -284,8 +284,9 @@ Status: done on the laptop. The cluster run is still open.
 - `MLFlowLogger` must get `tracking_uri=mlflow.get_tracking_uri()`: its
   default reads the environment when Lightning is imported and falls back to
   `file:./mlruns`.
-- The LoggedModel uses the default `pt2` format (torch.export works for
-  PhaseNet). Explicit `pip_requirements` skip MLflow's slow requirement
+- The LoggedModel uses the `pickle` format: a default `pt2`
+  (torch.export) model saved from CPU weights cannot be loaded on a GPU
+  node, which the first cluster run showed. Explicit `pip_requirements` skip MLflow's slow requirement
   inference.
 - Checked on the laptop against both a SQLite store and the folder store
   (`MLFLOW_ALLOW_FILE_STORE=true`). Same seed, same losses.
