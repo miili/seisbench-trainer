@@ -173,7 +173,7 @@ def phase_figure(
 ) -> Figure:
     """Publication figure of one phase: residuals, detection, ROC and statistics.
 
-    a: residual histogram (log counts, bins on the sample grid) with the
+    a: residual histogram (bins on the sample grid) with the
     ``band_s`` tolerance band; b: F1, precision and recall against the
     threshold of the detection metrics (matching tolerance ``tolerance_s``),
     with the F1-optimal threshold marked; c: ROC of the pick-window scores;
@@ -239,7 +239,6 @@ def phase_figure(
                 false_rate, true_rate = roc_curve(pick)
                 roc.plot(false_rate, true_rate, color=color)
 
-        histogram.set_yscale("log")
         histogram.set(
             xlim=(-half_window_s, half_window_s),
             xlabel="Pick residual, $t_{pred} - t_{true}$ (s)",

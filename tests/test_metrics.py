@@ -70,6 +70,14 @@ def test_pick_accuracy_ignores_peaks_outside_the_window() -> None:
     np.testing.assert_allclose(result.scores, [0.3])
 
 
+def test_window_edge_is_not_a_pick() -> None:
+    """A maximum on the window boundary means no peak: no residual, score kept."""
+    rising = np.linspace(0.0, 0.5, SAMPLES)[None]
+    result = pick_accuracy(rising, picks([300]), half_window=100, edge=10)
+    assert np.isnan(result.residuals).all()
+    np.testing.assert_allclose(result.scores, [rising[0, 400]])
+
+
 def test_pick_at_the_trace_edge() -> None:
     probs = curve((0, 0.9))[None]
     result = pick_accuracy(probs, picks([3]), half_window=100, edge=10)

@@ -350,13 +350,17 @@ open.
   image slider (`log_image` with `step`) shows only 256 px thumbnails and
   prints all run params on each card, so it is not used.
 - The figure is a 2x2 publication layout (183 mm wide, Okabe-Ito colours,
-  panels a-d): residual histogram on the sample grid with log counts,
+  panels a-d): residual histogram on the sample grid (linear counts),
   F1/precision/recall against the threshold (colour = model, line style =
   metric, best F1 marked), pick-window ROC, and a summary table with the
   better value per row in bold. One model key for the whole figure. The
   trained model is called `<model>-<datasets>` (e.g.
   `PhaseNet-BohemiaSaxony`, "fine-tuned from original"), the baseline
   `<model> (<weights>)` (e.g. `PhaseNet (original)`).
+- Window picks whose maximum lies on the window boundary (not the trace
+  boundary) have no peak in the window. They get no residual (left out of
+  the residual statistics and the histogram) but keep their score for the
+  ROC.
 - The exported model stores the F1-optimal detection thresholds of its best
   epoch (validation set) as `default_args.P_threshold` / `S_threshold`, which
   seisbench's `classify()` uses. They are also logged-model params and part

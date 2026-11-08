@@ -54,7 +54,9 @@ def pick_accuracy(
     For each true pick, only the samples within ``half_window`` of it count.
     Where the windows of two picks in one trace overlap, each sample belongs
     to the nearer pick. The predicted pick is the highest point in the
-    window, its value is the score.
+    window, its value is the score. If that point is the window's boundary
+    (not the trace's), the window holds no peak: the residual is NaN and only
+    the score is kept.
 
     Negatives: the maximum probability of each trace without any pick of this
     phase, ignoring ``edge`` samples at both ends.
@@ -83,6 +85,12 @@ def pick_accuracy(
     window_probs = np.where(inside, probs[traces], -np.inf)
     predicted = np.argmax(window_probs, axis=1)
     scores = window_probs[np.arange(traces.size), predicted]
+    first = np.clip(np.ceil(lower), 0, n_samples - 1)
+    last = np.clip(np.floor(upper), 0, n_samples - 1)
+    at_edge = ((predicted == first) & (first > 0)) | (
+        (predicted == last) & (last < n_samples - 1)
+    )
+    residuals = np.where(at_edge, np.nan, predicted - positions)
 
     pick_free = np.ones(n_traces, dtype=bool)
     pick_free[traces] = False
@@ -90,7 +98,7 @@ def pick_accuracy(
     negative = interior.max(axis=1) if interior.shape[1] else np.zeros(0)
 
     return PickScores(
-        residuals=predicted - positions,
+        residuals=residuals,
         scores=scores.astype(np.float64),
         negative_scores=negative.astype(np.float64),
     )
