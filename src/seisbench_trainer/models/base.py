@@ -6,7 +6,10 @@ The rest of the package uses only this interface.
 """
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal
+
+from pydantic import Field
 
 from seisbench_trainer.data.phases import PHASES, Augmentation
 from seisbench_trainer.schema import StrictModel
@@ -21,6 +24,20 @@ LabelShape = Literal["gaussian", "triangle", "box"]
 
 
 class PickerModelConfig(StrictModel, ABC):
+    pretrained: str | None = Field(
+        default=None,
+        description="Weights to start from: a SeisBench pretrained name (e.g. "
+        "'original') or a local SeisBench model path without suffix (the "
+        ".json/.pt pair). None trains from scratch.",
+    )
+
+    def weights_path(self) -> Path | None:
+        """``pretrained`` as a local model path, if it is one."""
+        if self.pretrained is None:
+            return None
+        path = Path(self.pretrained)
+        return path if path.with_suffix(".json").is_file() else None
+
     @abstractmethod
     def build(self, component_order: str, sampling_rate: float) -> "sbm.WaveformModel":
         """Build the model for data with this component order and sampling rate.
@@ -57,8 +74,11 @@ class PickerModelConfig(StrictModel, ABC):
         return {phase: pred[:, model.labels.index(phase)] for phase in PHASES}
 
     def variant(self) -> str:
-        """Short description of the starting weights, e.g. 'scratch'."""
-        return "scratch"
+        """Short description of the starting weights, e.g. 'from-original'."""
+        if self.pretrained is None:
+            return "scratch"
+        path = self.weights_path()
+        return f"from-{path.name if path else self.pretrained}"
 
     def window_samples(self, model: "sbm.WaveformModel") -> int:
         """Default input window length."""

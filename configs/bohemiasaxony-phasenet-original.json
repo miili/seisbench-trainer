@@ -1,16 +1,35 @@
 {
   "data": {
-    "datasets": [{"type": "seisbench", "name": "BohemiaSaxony"}],
+    "datasets": [
+      {
+        "type": "seisbench",
+        "name": "BohemiaSaxony"
+      }
+    ],
     "component_order": "ENZ",
     "sampling_rate": 100.0,
     "batch_size": 1024,
     "num_workers": 16
   },
-  "model": {"type": "PhaseNet", "pretrained": "original"},
+  "model": {
+    "type": "PhaseNet",
+    "pretrained": "original"
+  },
   "training": {
     "epochs": 100,
     "accelerator": "gpu",
-    "optimizer": {"type": "adam", "lr": 0.01, "weight_decay": 0.0}
+    "optimizer": {
+      "type": "adam",
+      "lr": 0.01,
+      "weight_decay": 0.0
+    }
   },
-  "tracking": {"tags": {"purpose": "final_training"}}
+  "tracking": {
+    "tags": {
+      "purpose": "final_training"
+    }
+  },
+  "evaluation": {
+    "test_at_end": true
+  }
 }

@@ -45,6 +45,20 @@ needed. The Slurm script sets `MLFLOW_ALLOW_FILE_STORE=true`, which MLflow
 `mlflow ui --backend-store-uri file:///<shared>/mlruns` on a login node and
 open it through an SSH tunnel.
 
+## Evaluate
+
+```bash
+seisbench-trainer evaluate --model <run_id>                     # its test split
+seisbench-trainer evaluate --model models:/<name>@champion --dataset ETHZ
+seisbench-trainer evaluate --model PhaseNet:original --dataset BohemiaSaxony
+sbatch slurm/evaluate.sbatch --model <run_id>                   # on the cluster
+```
+
+Thresholds are selected on the dev split and applied to the evaluated split
+at 0.1, 0.2 and 0.5 s tolerance. Results are linked to the model and the
+dataset in MLflow. Set `"evaluation": {"test_at_end": true}` to evaluate
+right after training.
+
 ## Config
 
 `seisbench-trainer config --schema` prints the JSON schema. Choices between

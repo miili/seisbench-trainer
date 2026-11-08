@@ -59,7 +59,7 @@ src/seisbench_trainer/
     run.py               run metadata: config, git, versions, Slurm tags; LoggedModel export
     callbacks.py         EvaluationCallback (metrics and figures to MLflow)
     registry.py          register, export
-  evaluate.py            test and cross-dataset evaluation
+  evaluate.py            load_model(ref), evaluate(): test and cross-dataset evaluation
   hpo/                   imported only with the [hpo] extra
     __init__.py
     space.py             FloatParam | IntParam | CategoricalParam (tag "type")
@@ -361,6 +361,33 @@ Tasks:
   which prints a Rich results table.
 - Tests: evaluating the step-4 model on the synthetic test split logs a
   table and metrics linked to the model.
+
+Status: done on the laptop.
+
+- Model references: `models:/<model_id>`, `models:/<name>@<alias>`,
+  `models:/<name>/<version>`, a training run ID, or `<Type>:<weights>`
+  (a SeisBench pretrained name or a local model path, e.g.
+  `PhaseNet:original`). For MLflow models, the config of the source run
+  gives the model type and the default data and evaluation settings.
+- `pretrained` moved to the model base class and accepts a local SeisBench
+  model path too (FR-M2), which also enables fine-tuning from local weights.
+- Thresholds are always selected on the dev split at
+  `evaluation.tolerance_s` and applied unchanged to the evaluated split at
+  every `test_tolerances_s`, as in the thesis. This works the same for
+  trained, pretrained and cross-dataset evaluation.
+- Metric names: `{prefix}{split}_pick_{phase}/...` and
+  `{prefix}{split}_det_{phase}/tol{t}s/{precision,recall,f1,mae_s,...}`,
+  plus `{split}_det_{phase}/threshold`. They are logged with `model_id` and
+  an MLflow dataset (name `<datasets>/<split>`, digest of the trace names),
+  and the summary goes to `evaluation/{prefix}{split}_summary.json`
+  (`log_table`).
+- `evaluation.test_at_end` evaluates the best model and the baseline
+  (prefix `baseline_`) inside the training run, reusing the loaded splits.
+  The `evaluate` command creates its own run (tag `purpose=evaluation`).
+  `slurm/evaluate.sbatch` runs it on a GPU node.
+- Training runs record no dataset input yet (FR-D6); evaluation does.
+- The git commit tag falls back to reading `.git` directly; the cluster's
+  compute nodes have no git executable (then `git.dirty` is `unknown`).
 
 ## Step 7: Combined datasets [FR-D2a, FR-D2b]
 

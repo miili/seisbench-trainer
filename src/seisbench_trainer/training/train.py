@@ -20,12 +20,14 @@ from seisbench_trainer.data.augmentations import (
     eval_augmentations,
     train_augmentations,
 )
-from seisbench_trainer.data.loaders import load_splits, make_loader
+from seisbench_trainer.data.loaders import Splits, load_splits, make_loader
+from seisbench_trainer.evaluate import LoadedModel, evaluate
 from seisbench_trainer.tracking.callbacks import EvaluationCallback
 from seisbench_trainer.tracking.run import (
     experiment_name,
     log_run_metadata,
     log_seisbench_model,
+    model_name,
 )
 from seisbench_trainer.training.module import PickerModule
 from seisbench_trainer.units import seconds_to_samples
@@ -57,6 +59,20 @@ def _load_best(module: PickerModule, checkpoint_path: str) -> int:
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     module.load_state_dict(checkpoint["state_dict"])
     return int(checkpoint["epoch"])
+
+
+def _test(
+    config: TrainConfig, module: PickerModule, model_id: str, splits: Splits
+) -> None:
+    """Test-set evaluation of the best model and the baseline."""
+    trained = LoadedModel(config.model, module.model, model_name(config), model_id)
+    evaluate(trained, config, "test", splits)
+    baseline = config.evaluation.baseline
+    if baseline is not None:
+        loaded = LoadedModel(
+            baseline, baseline.load_pretrained(), f"baseline {baseline.variant()}"
+        )
+        evaluate(loaded, config, "test", splits, prefix="baseline_")
 
 
 def train(config: TrainConfig) -> str:
@@ -129,5 +145,7 @@ def train(config: TrainConfig) -> str:
                 step=epoch,
                 model_id=model_id,
             )
+        if config.evaluation.test_at_end:
+            _test(config, module, model_id, splits)
         logger.info("Run %s finished; best epoch %d, model %s", run_id, epoch, model_id)
     return run_id

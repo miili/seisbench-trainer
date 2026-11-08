@@ -2,8 +2,6 @@
 
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import Field
-
 from seisbench_trainer.data.phases import PHASE_COLUMNS, Augmentation
 from seisbench_trainer.models.base import LabelShape, PickerModelConfig
 
@@ -16,14 +14,6 @@ if TYPE_CHECKING:
 
 class PhaseNetConfig(PickerModelConfig):
     type: Literal["PhaseNet"] = "PhaseNet"
-    pretrained: str | None = Field(
-        default=None,
-        description="SeisBench pretrained weights to start from, e.g. 'original'. "
-        "None trains from scratch.",
-    )
-
-    def variant(self) -> str:
-        return "scratch" if self.pretrained is None else f"from-{self.pretrained}"
 
     def build(self, component_order: str, sampling_rate: float) -> "sbm.PhaseNet":
         import seisbench.models as sbm
@@ -53,6 +43,9 @@ class PhaseNetConfig(PickerModelConfig):
 
         if self.pretrained is None:
             raise ValueError("no pretrained weights configured")
+        path = self.weights_path()
+        if path is not None:
+            return sbm.PhaseNet.load(path)
         return sbm.PhaseNet.from_pretrained(self.pretrained)
 
     def label_augmentations(

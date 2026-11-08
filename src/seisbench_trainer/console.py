@@ -52,3 +52,17 @@ def metrics_table(metrics: dict[str, float], phases: tuple[str, ...]) -> Table:
             values = [metrics.get(key, math.nan) for key in keys]
             table.add_row(name, phase, *(f"{value:.3f}" for value in values))
     return table
+
+
+def evaluation_table(rows: list[dict[str, str | float | int]]) -> Table:
+    """Test results: one row per model, phase and tolerance."""
+    table = Table()
+    if not rows:
+        return table
+    for column in rows[0]:
+        justify = "left" if column in ("model", "phase") else "right"
+        table.add_column(column, justify=justify)
+    for row in rows:
+        cells = [f"{v:.3f}" if isinstance(v, float) else str(v) for v in row.values()]
+        table.add_row(*cells)
+    return table
