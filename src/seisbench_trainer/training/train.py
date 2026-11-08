@@ -21,6 +21,7 @@ from seisbench_trainer.data.augmentations import (
     train_augmentations,
 )
 from seisbench_trainer.data.loaders import load_splits, make_loader
+from seisbench_trainer.tracking.callbacks import EvaluationCallback
 from seisbench_trainer.tracking.run import (
     experiment_name,
     log_run_metadata,
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 def _callbacks(config: TrainConfig, checkpoint: ModelCheckpoint) -> list[Callback]:
     training = config.training
     callbacks: list[Callback] = [
+        EvaluationCallback(config),
         checkpoint,
         LearningRateMonitor(logging_interval="epoch"),
         RichProgressBar(),

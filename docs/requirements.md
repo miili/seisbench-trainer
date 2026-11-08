@@ -321,7 +321,7 @@ validation set after every epoch and logged with the epoch as the step.
   its MLflow run marked `KILLED` or `FAILED`, not `RUNNING`. HPO workers can
   be restarted.
 - **NFR-6 Dependencies:** the core needs torch, lightning, seisbench, mlflow,
-  pydantic, typer, rich, numpy, scipy, scikit-learn and matplotlib.
+  pydantic, typer, rich, numpy, scipy and matplotlib.
   Optuna and optuna-integration are only in `[hpo]`. Ruff and pytest are dev
   dependencies.
 - **NFR-7 Quality:** ruff lint and format pass. There are unit tests for the

@@ -5,7 +5,7 @@ import mlflow
 import pytest
 import seisbench.models as sbm
 from mlflow import MlflowClient
-from mlflow.artifacts import download_artifacts, load_dict
+from mlflow.artifacts import download_artifacts, list_artifacts, load_dict
 from pydantic import JsonValue
 
 from seisbench_trainer.config import TrainConfig
@@ -24,9 +24,12 @@ def tracking_uri(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[st
     yield uri
 
 
-def small_config(synthetic_path: Path, tmp_path: Path, epochs: int) -> TrainConfig:
+def small_config(
+    synthetic_path: Path, tmp_path: Path, epochs: int, **sections: object
+) -> TrainConfig:
     return TrainConfig.model_validate(
         {
+            "evaluation": {"baseline": None},
             "data": {
                 "datasets": [{"type": "local", "path": str(synthetic_path)}],
                 "batch_size": 16,
@@ -39,6 +42,7 @@ def small_config(synthetic_path: Path, tmp_path: Path, epochs: int) -> TrainConf
             },
             "tracking": {"tags": {"purpose": "test"}},
         }
+        | sections
     )
 
 
@@ -68,6 +72,12 @@ def test_train_end_to_end(
     assert len(client.get_metric_history(run_id, "val_loss")) == 2
     assert client.get_metric_history(run_id, "train_loss")
     assert "best_val_loss" in run.data.metrics
+    expected = ("pick_P/mae_s", "pick_S/auc", "det_P/f1", "det_S/recall", "det/f1_mean")
+    for key in expected:
+        assert len(client.get_metric_history(run_id, key)) == 2, key
+    assert not any(key.startswith("baseline_") for key in run.data.metrics)
+    images = list_artifacts(run_id=run_id, artifact_path="images")
+    assert images, "no evaluation figures logged"
 
     # config artifact, params and tags reproduce the run
     logged = load_dict(f"runs:/{run_id}/config.json")
@@ -114,3 +124,34 @@ def test_failed_run_is_marked_failed(
         train(small_config(synthetic_path, tmp_path, epochs=1))
     runs = mlflow.search_runs(search_all_experiments=True, output_format="list")
     assert [run.info.status for run in runs] == ["FAILED"]
+
+
+def test_train_with_baseline_and_detection_selection(
+    synthetic_path: Path, tmp_path: Path, tracking_uri: str
+) -> None:
+    try:
+        sbm.PhaseNet.from_pretrained("original")
+    except Exception as error:  # download failures come in many types
+        pytest.skip(f"pretrained weights not available: {error}")
+    config = small_config(
+        synthetic_path,
+        tmp_path,
+        epochs=1,
+        evaluation={"plot_every_n_epochs": 0},
+    )
+    config = config.model_copy(
+        update={
+            "training": config.training.model_copy(
+                update={"selection_metric": "det/f1_mean", "selection_mode": "max"}
+            ),
+            "evaluation": config.evaluation.model_copy(
+                update={"baseline": TrainConfig().evaluation.baseline}
+            ),
+        }
+    )
+    run = MlflowClient().get_run(train(config))
+    metrics = run.data.metrics
+    assert "best_det/f1_mean" in metrics
+    baseline = {"baseline_det_P/f1", "baseline_pick_S/mae_s", "baseline_det/f1_mean"}
+    assert baseline <= set(metrics)
+    assert not list_artifacts(run_id=run.info.run_id, artifact_path="images")

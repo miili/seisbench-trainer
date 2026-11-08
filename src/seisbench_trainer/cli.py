@@ -7,11 +7,11 @@ from types import FrameType
 from typing import Annotated
 
 import typer
-from rich.table import Table
 
 from seisbench_trainer import __version__
 from seisbench_trainer.config import TrainConfig, dump_config, load_config
-from seisbench_trainer.console import console, setup_logging
+from seisbench_trainer.console import console, metrics_table, setup_logging
+from seisbench_trainer.data.phases import PHASES
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
 
@@ -69,12 +69,9 @@ def train_command(
     signal.signal(signal.SIGTERM, _interrupt_on_sigterm)
     run_id = train(config)
 
-    run = mlflow.get_run(run_id)
+    metrics = mlflow.get_run(run_id).data.metrics
+    selection = f"best_{config.training.selection_metric}"
     console.print(f"Run [bold]{run_id}[/] ({mlflow.get_tracking_uri()})")
-    table = Table()
-    table.add_column("Metric")
-    table.add_column("Value", justify="right")
-    for key, value in sorted(run.data.metrics.items()):
-        if not key.startswith("system/"):
-            table.add_row(key, f"{value:.4g}")
-    console.print(table)
+    if selection in metrics:
+        console.print(f"{selection} = {metrics[selection]:.4g}")
+    console.print(metrics_table(metrics, PHASES))

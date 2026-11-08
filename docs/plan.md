@@ -53,7 +53,7 @@ src/seisbench_trainer/
     __init__.py
     picks.py             pick_accuracy (window-based), detect_picks (label-free)
     scores.py            precision_recall_f1, best_threshold, roc_auc, summary
-    plots.py             matplotlib figures
+    plots.py             one summary figure per phase (matplotlib, no pyplot)
   tracking/
     __init__.py
     run.py               run metadata: config, git, versions, Slurm tags; LoggedModel export
@@ -121,7 +121,7 @@ rejects unknown tags with `union_tag_invalid`.
 Tasks:
 - Add the dependencies to `pyproject.toml`:
   - core: `torch`, `lightning`, `seisbench`, `mlflow>=3`, `pydantic>=2`,
-    `typer`, `rich`, `numpy`, `scipy`, `scikit-learn`, `matplotlib`
+    `typer`, `rich`, `numpy`, `scipy`, `matplotlib`
     [NFR-6];
   - extra `hpo`: `optuna`, `optuna-integration`;
   - dev group: `ruff`, `pyright`, `pytest`, `pre-commit`.
@@ -323,6 +323,30 @@ Tasks:
   A regression test for the old edge-mask bug.
 - Cluster check: on BohemiaSaxony, the validation F1 and MAE are close to
   the thesis values.
+
+Status: done on the laptop. The thesis comparison on the cluster is still
+open.
+
+- Metric names: `{family}_{phase}/{name}`, where the family is `pick`
+  (window-based) or `det` (detection). The baseline adds the prefix
+  `baseline_`. `det/f1_mean` is the mean of the P and S F1, usable as
+  `training.selection_metric` (with `selection_mode: "max"`).
+- Metrics go through `pl_module.log_dict`, so checkpointing, early stopping
+  and (later) HPO can use them. Figures go through `MlflowClient.log_image`
+  with `step=epoch`.
+- One figure per phase and epoch (`evaluation_P`, `evaluation_S`): residual
+  histogram, P/R/F1 against threshold, and ROC, with the baseline overlaid.
+  It replaces the reference project's 4 separate figures per phase.
+- `evaluation.baseline` is now a model config
+  (`{"type": "PhaseNet", "pretrained": "original"}`), loaded with the new
+  `load_pretrained()` and fed in its own component order.
+- Negative examples are the pick-free traces of each phase (a
+  `n_negatives` metric counts them). Extra pre-P noise windows (FR-E2c) are
+  not added yet; decide after seeing the counts on real data.
+- scikit-learn was dropped: the ROC is computed with NumPy (tested against
+  the pairwise definition). `scipy-stubs` gives typed `find_peaks`.
+- The CLI prints a compact table (rows: model and phase) of the latest
+  epoch.
 
 ## Step 6: Test and cross-dataset evaluation [FR-E5, FR-E5a]
 

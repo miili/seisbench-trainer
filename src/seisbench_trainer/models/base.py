@@ -30,6 +30,13 @@ class PickerModelConfig(StrictModel, ABC):
         """
 
     @abstractmethod
+    def load_pretrained(self) -> "sbm.WaveformModel":
+        """The pretrained model in its own component order (e.g. a baseline).
+
+        Raises ``ValueError`` if no pretrained weights are configured.
+        """
+
+    @abstractmethod
     def label_augmentations(
         self, model: "sbm.WaveformModel", sigma_samples: int, shape: LabelShape
     ) -> list[Augmentation]:

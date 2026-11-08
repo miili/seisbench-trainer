@@ -136,6 +136,12 @@ Known defects and limits in the reference code. Fix these when porting:
 - Import seisbench (it pulls in torch) only where data or models are
   actually loaded, so that config handling and the CLI stay fast.
 - Tests use the in-package synthetic dataset; they must not download data.
+  Tests that need the pretrained `original` PhaseNet skip when it can't be
+  downloaded; otherwise set `evaluation.baseline` to `null` in test configs.
+- Metric names follow `{family}_{phase}/{name}` (`pick_P/mae_s`,
+  `det_S/f1`), with the prefix `baseline_` for the baseline and
+  `det/f1_mean` for the mean of the P and S F1. Keep this scheme; the CLI
+  table and the selection metric rely on it.
 - Tests: `uv run pytest`. Use a small SeisBench dataset, or a synthetic
   in-memory `WaveformDataset`, with a CPU-only short run. Tests must not
   download large datasets.

@@ -64,10 +64,10 @@ class EvaluationConfig(StrictModel):
         description="Samples this close to the trace edges are ignored for "
         "noise scores.",
     )
-    baseline: str | None = Field(
-        default="original",
-        description="SeisBench pretrained weights evaluated alongside for "
-        "comparison. None disables the baseline.",
+    baseline: ModelConfig | None = Field(
+        default_factory=lambda: PhaseNetConfig(pretrained="original"),
+        description="Pretrained model evaluated alongside for comparison, fed "
+        "in its own component order. None disables the baseline.",
     )
     plot_every_n_epochs: NonNegativeInt = Field(
         default=1, description="0 disables the figures."

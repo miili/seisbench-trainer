@@ -33,7 +33,7 @@ class PhaseNetConfig(PickerModelConfig):
                 component_order=component_order, sampling_rate=sampling_rate
             )
 
-        pretrained = sbm.PhaseNet.from_pretrained(self.pretrained)
+        pretrained = self.load_pretrained()
         if pretrained.sampling_rate != sampling_rate:
             raise ValueError(
                 f"pretrained {self.pretrained!r} expects "
@@ -47,6 +47,13 @@ class PhaseNetConfig(PickerModelConfig):
                 f'set "data.component_order" to {pretrained.component_order!r}'
             )
         return pretrained
+
+    def load_pretrained(self) -> "sbm.PhaseNet":
+        import seisbench.models as sbm
+
+        if self.pretrained is None:
+            raise ValueError("no pretrained weights configured")
+        return sbm.PhaseNet.from_pretrained(self.pretrained)
 
     def label_augmentations(
         self, model: "sbm.WaveformModel", sigma_samples: int, shape: LabelShape
