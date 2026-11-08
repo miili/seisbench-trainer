@@ -63,7 +63,7 @@ Fixed decisions:
   alternatives, use a Pydantic discriminated union. Each alternative is its
   own model with a `Literal` tag field, and the union uses
   `Field(discriminator=…)`. Examples:
-  - models: `PhaseNetConfig | EQTransformerConfig`, tagged by `model`;
+  - models: `PhaseNetConfig | EQTransformerConfig`, tagged by `type`;
   - datasets: `SeisBenchDataset | LocalDataset`, tagged by `type`;
   - optimizers: Adam / AdamW;
   - LR schedulers: none / cosine / plateau;

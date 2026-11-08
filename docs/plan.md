@@ -28,15 +28,17 @@ src/seisbench_trainer/
   py.typed
   cli.py                 Typer app: config, train, evaluate, register, export, hpo
   console.py             Rich console, RichHandler logging setup, table helpers
-  config.py              TrainConfig: the top-level model that composes the section configs
+  config.py              TrainConfig composing the sections; TrainingConfig, EvaluationConfig, TrackingConfig
+  schema.py              StrictModel: shared base (extra="forbid", frozen)
   units.py               seconds_to_samples() and other unit conversions
   data/
-    __init__.py          DatasetConfig union, DataConfig
+    __init__.py          re-exports
+    config.py            DataConfig, AugmentationConfig
     sources.py           SeisBenchDataset | LocalDataset (tag "type"); each has .load()
     augmentations.py     train and validation pipelines
     loaders.py           split, concatenate, preload, DataLoaders
   models/
-    __init__.py          ModelConfig = Annotated[PhaseNetConfig | ..., Field(discriminator="model")]
+    __init__.py          ModelConfig = Annotated[PhaseNetConfig | ..., Field(discriminator="type")]
     base.py              PickerModelConfig (ABC): build, label_augmentations, loss, phase_probabilities
     phasenet.py          PhaseNetConfig
     eqtransformer.py     EQTransformerConfig (step 10)
@@ -97,12 +99,12 @@ class PickerModelConfig(BaseModel, ABC):
 
 
 class PhaseNetConfig(PickerModelConfig):
-    model: Literal["PhaseNet"] = "PhaseNet"
+    type: Literal["PhaseNet"] = "PhaseNet"
     ...
 
 
-ModelConfig = Annotated[PhaseNetConfig, Field(discriminator="model")]
-# step 10: Annotated[PhaseNetConfig | EQTransformerConfig, Field(discriminator="model")]
+ModelConfig = Annotated[PhaseNetConfig, Field(discriminator="type")]
+# step 10: Annotated[PhaseNetConfig | EQTransformerConfig, Field(discriminator="type")]
 ```
 
 Tested with Pydantic 2.14: a union with only one member and
@@ -164,7 +166,14 @@ Tasks:
   - an unknown tag, an unknown key, `num_workers=0` and an invalid component
     order are each rejected with a readable error.
 
-The `hpo` section is added in step 9.
+The `hpo` section is added in step 9. Model-dependent checks (for example,
+whether the window length fits the model) need the built model, so they come
+in step 3.
+
+Status: done. Every union is tagged by a `type` field, including the model
+(`"model": {"type": "PhaseNet", "pretrained": "original"}`). The model union
+has only one member for now; the abstract base and `build()` come in
+step 3.
 
 ## Step 2: Data [FR-D1–D5]
 
@@ -345,7 +354,7 @@ Tasks:
 - Changes are allowed only in `models/` and the tests. If other modules
   need changing, the base-class interface is wrong: fix the interface, not
   the callers.
-- Tests: the same smoke test as step 4 with `"model": "EQTransformer"`.
+- Tests: the same smoke test as step 4 with `"model": {"type": "EQTransformer"}`.
 
 ---
 
