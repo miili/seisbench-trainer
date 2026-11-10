@@ -22,6 +22,7 @@ from seisbench_trainer.data.augmentations import (
     train_augmentations,
 )
 from seisbench_trainer.data.loaders import Splits, load_splits, make_loader
+from seisbench_trainer.data.steps import StepContext
 from seisbench_trainer.evaluate import LoadedModel, evaluate
 from seisbench_trainer.tracking.callbacks import EvaluationCallback
 from seisbench_trainer.tracking.run import (
@@ -106,7 +107,15 @@ def train(
         splits = load_splits(config.data)
     train_loader = make_loader(
         splits.train,
-        [*train_augmentations(augmentation, sampling_rate, window), *labels],
+        [
+            *train_augmentations(
+                augmentation,
+                StepContext(
+                    sampling_rate, window, config.data.component_order, splits.train
+                ),
+            ),
+            *labels,
+        ],
         config.data,
         shuffle=True,
     )

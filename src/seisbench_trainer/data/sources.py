@@ -11,7 +11,9 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
+import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 from pydantic import Field, NonNegativeInt, PositiveFloat, PositiveInt
 
 from seisbench_trainer.schema import StrictModel
@@ -22,14 +24,19 @@ if TYPE_CHECKING:
     import seisbench.data as sbd
 
 
+def query_mask(metadata: pd.DataFrame, query: str) -> NDArray[np.bool_]:
+    """Rows of ``metadata`` that match a pandas query."""
+    mask = metadata.eval(query)
+    if not (isinstance(mask, pd.Series) and mask.dtype == bool):
+        raise ValueError(f"query {query!r} does not give a boolean mask")
+    return mask.to_numpy(dtype=bool)
+
+
 def _apply_query(
     dataset: "sbd.WaveformDataset", query: str | None
 ) -> "sbd.WaveformDataset":
     if query is not None:
-        mask = dataset.metadata.eval(query)
-        if not (isinstance(mask, pd.Series) and mask.dtype == bool):
-            raise ValueError(f"query {query!r} does not give a boolean mask")
-        dataset.filter(mask.to_numpy(dtype=bool), inplace=True)
+        dataset.filter(query_mask(dataset.metadata, query), inplace=True)
     return dataset
 
 

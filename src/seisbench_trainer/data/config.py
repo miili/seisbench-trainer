@@ -4,7 +4,6 @@ from typing import Annotated, Literal, Self
 
 from pydantic import (
     Field,
-    NonNegativeFloat,
     PositiveFloat,
     PositiveInt,
     StringConstraints,
@@ -13,6 +12,7 @@ from pydantic import (
 )
 
 from seisbench_trainer.data.sources import DatasetConfig, SeisBenchDataset
+from seisbench_trainer.data.steps import PickWindow, RandomWindow, TrainStep
 from seisbench_trainer.schema import StrictModel
 
 ComponentOrder = Annotated[str, StringConstraints(pattern=r"^[A-Z0-9]{1,3}$")]
@@ -48,30 +48,41 @@ class DataConfig(StrictModel):
         return value
 
 
-class AugmentationConfig(StrictModel):
-    """Training augmentations and labels. Durations in seconds."""
+def _default_train_steps() -> list[TrainStep]:
+    # pick-benchmark PhaseNet recipe: 2/3 pick context window, then the crop
+    return [PickWindow(probability=2 / 3), RandomWindow()]
 
-    pick_context_probability: float = Field(
-        default=2 / 3,
-        ge=0.0,
-        le=1.0,
-        description="Probability of first cutting a context window around a "
-        "random pick, before the random crop to the model input length.",
+
+class AugmentationConfig(StrictModel):
+    """Training augmentations, normalization and labels. Durations in seconds."""
+
+    train: list[TrainStep] = Field(
+        default_factory=_default_train_steps,
+        description="Training pipeline, applied in order: pick_window steps, "
+        "exactly one random_window crop to the model input length, then the "
+        "perturbations. Validation and test use fixed windows instead.",
     )
-    pick_context_s: PositiveFloat = 60.0
-    pick_context_before_s: NonNegativeFloat = 30.0
     window_s: PositiveFloat | None = Field(
         default=None,
         description="Model input length. None uses the model's own input length.",
     )
-    normalization: Literal["peak", "std"] = "peak"
+    normalization: Literal["peak", "std"] = Field(
+        default="peak",
+        description="Applied after the training steps and in evaluation alike.",
+    )
     label_sigma_s: PositiveFloat = Field(
         default=0.1, description="Width of the pick label curve."
     )
     label_shape: Literal["gaussian", "triangle", "box"] = "gaussian"
 
     @model_validator(mode="after")
-    def _context_contains_pick(self) -> Self:
-        if self.pick_context_before_s > self.pick_context_s:
-            raise ValueError("pick_context_before_s must not exceed pick_context_s")
+    def _windows_then_perturbations(self) -> Self:
+        crops = [i for i, s in enumerate(self.train) if isinstance(s, RandomWindow)]
+        if len(crops) != 1:
+            raise ValueError("train needs exactly one random_window step")
+        before, after = self.train[: crops[0]], self.train[crops[0] + 1 :]
+        if not all(isinstance(step, PickWindow) for step in before):
+            raise ValueError("only pick_window steps may come before random_window")
+        if any(isinstance(step, PickWindow) for step in after):
+            raise ValueError("pick_window steps must come before random_window")
         return self

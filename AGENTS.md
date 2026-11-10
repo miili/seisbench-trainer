@@ -172,6 +172,10 @@ Known defects and limits in the reference code. Fix these when porting:
 - Prefer native SeisBench, Lightning and MLflow features over custom
   re-implementations. Examples: `ModelCheckpoint`, MLflow system metrics, the
   MLflow model registry.
+  Exception: the training perturbations (`data/perturbations.py`) are
+  reviewed re-implementations of `seisbench.generate` augmentations, because
+  the originals mix components, label erased picks or fail mid-training.
+  Each class documents its deviations; keep them when you add one.
 - Each run must be reproducible from its MLflow record alone: the resolved
   config, the seed, the dataset name and version, the git commit, and the
   package versions.

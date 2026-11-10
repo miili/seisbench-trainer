@@ -37,6 +37,8 @@ src/seisbench_trainer/
     phases.py            PHASES, PHASE_COLUMNS, augmentation types (no heavy imports)
     sources.py           SeisBenchDataset | LocalDataset | SyntheticDataset (tag "type"); each has .load()
     synthetic.py         write_synthetic_dataset(): noise plus P and S wavelets
+    steps.py             TrainStep union: pick_window, random_window, channel_dropout, add_gap, gaussian_noise, rotate_horizontal, real_noise
+    perturbations.py     reviewed NumPy re-implementations of the seisbench perturbations
     augmentations.py     train and validation pipelines
     loaders.py           split, concatenate, preload, DataLoaders
   models/
@@ -151,7 +153,8 @@ Tasks:
     `sampling_rate`, `batch_size`, `num_workers`);
   - `models`: `ModelConfig` (only `PhaseNetConfig` for now);
   - `training.optim`: `OptimizerConfig` and `SchedulerConfig`;
-  - `AugmentationConfig`: windows and label sigma in seconds;
+  - `AugmentationConfig`: the `train` step list (`data.steps`), input
+    window, normalization, label sigma in seconds [FR-D7];
   - `EvaluationConfig`: tolerances, pick window, peak height and distance,
     baseline, `plot_every_n_epochs`;
   - `TrackingConfig`: experiment name, tags;

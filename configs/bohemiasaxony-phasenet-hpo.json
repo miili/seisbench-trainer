@@ -7,6 +7,12 @@
     "num_workers": 16
   },
   "model": {"type": "PhaseNet", "pretrained": "original"},
+  "augmentation": {
+    "train": [
+      {"type": "pick_window", "probability": 0.667, "length_s": 60.0, "before_s": 30.0},
+      {"type": "random_window"}
+    ]
+  },
   "training": {
     "epochs": 30,
     "accelerator": "gpu",

@@ -20,7 +20,12 @@ from seisbench_trainer.data.augmentations import (
 )
 from seisbench_trainer.data.config import AugmentationConfig
 from seisbench_trainer.data.loaders import load_splits, make_loader
-from seisbench_trainer.data.phases import PHASE_COLUMNS, PHASES, Augmentation
+from seisbench_trainer.data.phases import (
+    PHASE_COLUMNS,
+    PHASES,
+    Augmentation,
+)
+from seisbench_trainer.data.steps import StepContext
 
 WINDOW = 3001
 SAMPLING_RATE = 100.0
@@ -112,10 +117,8 @@ def test_load_splits_concatenates_datasets(synthetic_path: Path) -> None:
 
 def test_train_loader_batches(synthetic_path: Path) -> None:
     splits = load_splits(DataConfig(datasets=[LocalDataset(path=synthetic_path)]))
-    augmentations = [
-        *train_augmentations(AugmentationConfig(), SAMPLING_RATE, WINDOW),
-        labeller(),
-    ]
+    context = StepContext(SAMPLING_RATE, WINDOW, "ZNE", splits.train)
+    augmentations = [*train_augmentations(AugmentationConfig(), context), labeller()]
     config = DataConfig(batch_size=16, num_workers=1)
     batch = next(iter(make_loader(splits.train, augmentations, config, shuffle=True)))
     assert tuple(batch["X"].shape) == (16, 3, WINDOW)
@@ -168,3 +171,51 @@ def test_eval_windows_are_not_centred(synthetic_path: Path) -> None:
     first_p = first_p[np.isfinite(first_p)]
     assert first_p.min() < WINDOW / 4
     assert first_p.max() > 3 * WINDOW / 4
+
+
+ALL_STEPS: list[dict[str, Any]] = [
+    {"type": "pick_window", "probability": 1.0, "length_s": 40.0, "before_s": 20.0},
+    {"type": "random_window"},
+    {"type": "channel_dropout", "probability": 1.0},
+    {"type": "add_gap", "probability": 1.0},
+    {"type": "gaussian_noise", "probability": 1.0, "scale": [0.1, 0.2]},
+    {"type": "rotate_horizontal", "probability": 1.0},
+    {"type": "real_noise", "probability": 1.0, "scale": [0.5, 1.0]},
+]
+
+
+def train_generator(
+    dataset: sbd.WaveformDataset, steps: list[dict[str, Any]], order: str = "ZNE"
+) -> sbg.GenericGenerator:
+    config = AugmentationConfig.model_validate({"train": steps})
+    context = StepContext(SAMPLING_RATE, WINDOW, order, dataset)
+    generator = sbg.GenericGenerator(dataset)
+    generator.add_augmentations([*train_augmentations(config, context), labeller()])
+    return generator
+
+
+def test_every_train_step_builds_and_keeps_shape(synthetic_path: Path) -> None:
+    generator = train_generator(local(synthetic_path), ALL_STEPS)
+    for index in range(10):
+        sample = generator[index]
+        assert sample["X"].shape == (3, WINDOW)
+        assert np.isfinite(sample["X"]).all()
+
+
+def test_step_probability_is_applied(synthetic_path: Path) -> None:
+    dataset = local(synthetic_path)
+    noise = {"type": "gaussian_noise", "scale": [0.5, 0.5]}
+
+    def samples(*extra: dict[str, Any]) -> list[NDArray[Any]]:
+        generator = train_generator(dataset, [{"type": "random_window"}, *extra])
+        crops: list[NDArray[Any]] = []
+        for index in range(20):
+            np.random.seed(index)  # the crop is drawn first: same in every pipeline
+            crops.append(generator[index]["X"])
+        return crops
+
+    plain = samples()
+    never = samples(noise | {"probability": 0.0})
+    always = samples(noise | {"probability": 1.0})
+    assert all(np.array_equal(a, b) for a, b in zip(plain, never, strict=True))
+    assert not any(np.array_equal(a, b) for a, b in zip(plain, always, strict=True))

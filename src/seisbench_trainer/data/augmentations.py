@@ -17,7 +17,7 @@ from seisbench_trainer.data.phases import (
     Augmentation,
     StateDict,
 )
-from seisbench_trainer.units import seconds_to_samples
+from seisbench_trainer.data.steps import StepContext
 
 
 def _pick_values(metadata: dict[str, Any], columns: list[str]) -> list[float]:
@@ -92,29 +92,10 @@ def _normalize(config: AugmentationConfig) -> list[Augmentation]:
 
 
 def train_augmentations(
-    config: AugmentationConfig, sampling_rate: float, window_samples: int
+    config: AugmentationConfig, context: StepContext
 ) -> list[Augmentation]:
-    """Random context window around a pick (or not), then a random crop."""
-    probability = config.pick_context_probability
-    return [
-        sbg.OneOf(
-            [
-                sbg.WindowAroundSample(
-                    list(PHASE_COLUMNS),
-                    samples_before=seconds_to_samples(
-                        config.pick_context_before_s, sampling_rate
-                    ),
-                    windowlen=seconds_to_samples(config.pick_context_s, sampling_rate),
-                    selection="random",
-                    strategy="variable",
-                ),
-                sbg.NullAugmentation(),
-            ],
-            probabilities=[probability, 1.0 - probability],
-        ),
-        sbg.RandomWindow(windowlen=window_samples, strategy="pad"),
-        *_normalize(config),
-    ]
+    """The configured training steps, then normalization."""
+    return [*(step.build(context) for step in config.train), *_normalize(config)]
 
 
 def eval_augmentations(

@@ -101,6 +101,18 @@ Fixed decisions:
 - **FR-D6:** Log the dataset identity as an MLflow dataset input
   (`mlflow.log_input`). Record the name, component order, sampling rate,
   number of traces per split and a digest of the metadata.
+- **FR-D7 Augmentation pipeline:** `augmentation.train` is the ordered list
+  of training augmentation steps, a discriminated union (FR-C7). Every
+  random step states its `probability`: the chance that it is applied to one
+  training example. Exactly one `random_window` crops to the model input
+  length, and `pick_window` steps come before it. Normalization and labels
+  follow the list, and validation and test windows do not use it. Perturbation
+  steps come after the crop. The windows are SeisBench's; the perturbations
+  (`channel_dropout`, `add_gap`, `gaussian_noise`, `rotate_horizontal`,
+  `real_noise`) are reviewed re-implementations in `data/perturbations.py`.
+  They must respect the loaded component order and drop picks they erase.
+  `real_noise` draws noise traces from the training split only, selected by
+  a metadata query (default `trace_category == "noise"`).
 
 ### 3.3 Models (agnostic, PhaseNet first)
 

@@ -18,6 +18,11 @@ from seisbench_trainer.training.optim import (
 )
 from seisbench_trainer.units import seconds_to_samples
 
+PICK = {"type": "pick_window", "probability": 0.5}
+CROP = {"type": "random_window"}
+DROPOUT = {"type": "channel_dropout", "probability": 0.3}
+NOISE = {"type": "real_noise", "probability": 0.5}
+
 
 def error_types(raw: dict[str, Any]) -> set[str]:
     with pytest.raises(ValidationError) as info:
@@ -88,7 +93,28 @@ def test_scheduler_defaults_to_none() -> None:
         ({"data": {"datasets": []}}, "too_short"),
         ({"data": {"component_order": "zne"}}, "string_pattern_mismatch"),
         ({"data": {"component_order": "ZZN"}}, "value_error"),
-        ({"augmentation": {"pick_context_before_s": 90.0}}, "value_error"),
+        (
+            {"augmentation": {"train": [PICK | {"before_s": 90.0}, CROP]}},
+            "value_error",
+        ),
+        ({"augmentation": {"train": [PICK]}}, "value_error"),
+        ({"augmentation": {"train": [CROP, CROP]}}, "value_error"),
+        ({"augmentation": {"train": [CROP, PICK]}}, "value_error"),
+        ({"augmentation": {"train": [DROPOUT, CROP]}}, "value_error"),
+        (
+            {"augmentation": {"train": [CROP, DROPOUT | {"probability": -0.1}]}},
+            "greater_than_equal",
+        ),
+        (
+            {"augmentation": {"train": [CROP, NOISE | {"scale": [0.5, 0.1]}]}},
+            "value_error",
+        ),
+        ({"augmentation": {"train": [{"type": "pick_window"}, CROP]}}, "missing"),
+        (
+            {"augmentation": {"train": [CROP, {"type": "add_gap", "probability": 2}]}},
+            "less_than_equal",
+        ),
+        ({"augmentation": {"train": [CROP, {"type": "mixup"}]}}, "union_tag_invalid"),
         ({"evaluation": {"min_peak_height": 1.5}}, "less_than"),
     ],
 )
