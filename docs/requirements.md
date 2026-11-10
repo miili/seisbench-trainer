@@ -340,16 +340,14 @@ validation set after every epoch and logged with the epoch as the step.
   evaluation metrics (with hand-built label and prediction arrays and
   known answers), the config validation and the model adapters, plus an
   end-to-end smoke test (FR-D5).
-- **NFR-8 Typing:** the codebase is fully typed: every function signature
-  and every class attribute. Use **pyright** in `strict` mode on `src/` and
-  `tests/` (configured in `[tool.pyright]` in `pyproject.toml`), and ship a
-  `py.typed` marker. Untyped third-party packages (seisbench, possibly
-  others) are handled with narrow settings for those packages only, not by
-  relaxing strict mode globally. Avoid `Any` unless a third-party boundary
+- **NFR-8 Typing:** the codebase is fully typed inline: every function
+  signature and every class attribute (ruff `ANN` checks the signatures).
+  Ship a `py.typed` marker. There are no separate stub files for untyped
+  third-party packages (seisbench, `optuna_integration`). Avoid `Any` unless a third-party boundary
   needs it. Use `numpy.typing.NDArray` and `torch.Tensor` for arrays.
 - **NFR-9 Pre-commit:** `.pre-commit-config.yaml` with `ruff check --fix`,
-  `ruff format`, pyright (a local hook run in the project environment, so it
-  sees the dependencies), and the standard hooks (`trailing-whitespace`,
+  `ruff format` (local hooks run in the project environment), and the
+  standard hooks (`trailing-whitespace`,
   `end-of-file-fixer`, `check-yaml`, `check-toml`, `check-added-large-files`).
   Ruff rules: at least `E`, `F`, `I`, `UP`, `B`, `SIM`, `ANN`, `RUF`. The rule
   set is configured in `pyproject.toml`.

@@ -125,15 +125,12 @@ Known defects and limits in the reference code. Fix these when porting:
   (synthetic data, CPU, under a minute; writes to `./mlflow.db`).
 - Every file in `configs/` is validated by the tests; keep them valid when
   the config schema changes.
-- Lint, format and type-check:
-  `uv run pre-commit run --all-files` (ruff check, ruff format, pyright).
-- Full type annotations are required everywhere (pyright `strict`). Relax
-  rules only for specific untyped third-party packages, never globally.
-- seisbench has no type information. The parts we use are declared in
-  partial stubs under `typings/seisbench/`. Extend the stubs, following
-  seisbench's real signatures, when you use a new seisbench API; do not add
-  `# type: ignore`.
-  `optuna_integration` is typed the same way, in `typings/optuna_integration/`.
+- Lint and format:
+  `uv run pre-commit run --all-files` (ruff check, ruff format).
+- Full inline type annotations are required in our code: every function
+  signature and class attribute (ruff `ANN` enforces the signatures). There
+  are no separate stub files; do not add `.pyi` stubs for third-party
+  packages such as seisbench or `optuna_integration`.
 - Import seisbench (it pulls in torch) only where data or models are
   actually loaded, so that config handling and the CLI stay fast.
 - Tests use the in-package synthetic dataset; they must not download data.

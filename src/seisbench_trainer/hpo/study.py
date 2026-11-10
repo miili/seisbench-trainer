@@ -158,9 +158,7 @@ def summarize(study: optuna.Study, config: TrainConfig) -> None:
             figure = axes.get_figure()
             if figure is not None:
                 # mlflow leaves the figure parameter untyped
-                client.log_figure(  # pyright: ignore[reportUnknownMemberType]
-                    parent, figure, f"optuna/{name}.png"
-                )
+                client.log_figure(parent, figure, f"optuna/{name}.png")
             plt.close("all")
     if _finished(study) >= hpo.n_trials:
         client.set_terminated(parent, "FINISHED")

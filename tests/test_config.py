@@ -125,7 +125,7 @@ def test_invalid_configs_rejected(raw: dict[str, Any], expected: str) -> None:
 def test_config_is_frozen() -> None:
     config = TrainConfig()
     with pytest.raises(ValidationError):
-        config.training.epochs = 1  # pyright: ignore[reportAttributeAccessIssue]
+        config.training.epochs = 1
 
 
 @pytest.mark.parametrize(

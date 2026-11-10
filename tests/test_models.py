@@ -187,7 +187,7 @@ def test_training_step_backpropagates(synthetic_path: Path) -> None:
     ]
     batch = next(iter(make_loader(splits.train, augmentations, config.data, False)))
     loss = config.model.loss(module(batch["X"]), batch)
-    loss.backward()  # pyright: ignore[reportUnknownMemberType]
+    loss.backward()
     gradients = [p.grad for p in module.parameters() if p.requires_grad]
     assert all(g is not None for g in gradients)
     assert any(float(g.abs().sum()) > 0 for g in gradients if g is not None)

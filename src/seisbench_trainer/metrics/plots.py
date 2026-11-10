@@ -1,8 +1,5 @@
 """Evaluation figures. Uses the object-oriented matplotlib API (no pyplot)."""
 
-# matplotlib leaves the **kwargs of its plotting methods untyped.
-# pyright: reportUnknownMemberType=false
-
 import base64
 import html
 import io
@@ -11,7 +8,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
-from matplotlib import rc_context  # pyright: ignore[reportUnknownVariableType]
+from matplotlib import rc_context
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
@@ -186,7 +183,7 @@ def phase_figure(
     step = max(1, half // 200)
     edges = (np.arange(-half, half + 2 * step, step) - step / 2) / sampling_rate
 
-    with rc_context(STYLE):  # pyright: ignore[reportUnknownArgumentType]
+    with rc_context(STYLE):
         figure = Figure(figsize=(7.2, 6.2), layout="constrained")
         (histogram, curves), (roc, table) = figure.subplots(2, 2)
         histogram.axvspan(-band_s, band_s, color="0.92", linewidth=0, zorder=0)

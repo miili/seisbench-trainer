@@ -12,7 +12,7 @@ import mlflow
 import numpy as np
 import seisbench.models as sbm
 from mlflow.pytorch import (  # mlflow leaves its model parameter untyped
-    log_model,  # pyright: ignore[reportUnknownVariableType]
+    log_model,
 )
 from pydantic import JsonValue
 

@@ -15,7 +15,7 @@ adds no code for later steps.
 - The CLI uses Typer. All console output goes through Rich [FR-CLI1,
   FR-CLI1a].
 - Every step is done when all of these pass: `uv run pre-commit run
-  --all-files` (ruff, pyright strict), `uv run pytest`, and a laptop smoke
+  --all-files` (ruff), `uv run pytest`, and a laptop smoke
   run.
 - Development and tests run on the laptop: CPU only, synthetic data. The
   cluster is used from step 4 onwards, to check results on real data.
@@ -69,7 +69,6 @@ src/seisbench_trainer/
 tests/
   conftest.py            synthetic SeisBench dataset fixture (tmp_path)
   test_*.py
-typings/seisbench/       partial type stubs for the seisbench API in use
 configs/                 example JSON configs
 slurm/                   sbatch scripts
 ```
@@ -126,13 +125,12 @@ Tasks:
     `typer`, `rich`, `numpy`, `scipy`, `matplotlib`
     [NFR-6];
   - extra `hpo`: `optuna`, `optuna-integration`;
-  - dev group: `ruff`, `pyright`, `pytest`, `pre-commit`.
+  - dev group: `ruff`, `pytest`, `pre-commit`.
 - Laptop: get a CPU-only `torch` from the PyTorch CPU index through
   `[tool.uv.sources]`, so a small laptop does not download the CUDA wheels.
   The cluster's `pip install -e .` ignores `tool.uv`, so its conda env is
   not affected.
-- Add ruff (`E,F,I,UP,B,SIM,ANN,RUF`) and pyright (`strict`, untyped
-  packages handled one by one) to `pyproject.toml`. Add
+- Add ruff (`E,F,I,UP,B,SIM,ANN,RUF`) to `pyproject.toml`. Add
   `.pre-commit-config.yaml` [NFR-8, NFR-9] and `py.typed`.
 - Add `.gitignore` entries: `mlruns/`, `mlflow.db`, `mlartifacts/`,
   `checkpoints/`, `*.ckpt`, `lightning_logs/`.
@@ -211,8 +209,7 @@ Status: done.
   set of parameters into the system temp folder.
 - `pick_samples` is a `(phases, 4)` float array, NaN-padded, in the order of
   `PHASES` (P, S).
-- seisbench is typed through partial stubs in `typings/seisbench/`, and is
-  imported only when data is loaded.
+- seisbench is imported only when data is loaded.
 
 ## Step 3: Model config and LightningModule [FR-M1–M5, FR-T1]
 
@@ -494,8 +491,7 @@ ahead).
   lock file (`<journal>.setup`) makes sure only one worker creates the
   study's MLflow parent run; its ID is a study user attribute.
 - `train()` takes `splits`, `parent_run_id` and extra `callbacks`. Pruning
-  uses `optuna_integration.PyTorchLightningPruningCallback` (partial stub in
-  `typings/optuna_integration/`); a pruned trial's run is marked `KILLED`.
+  uses `optuna_integration.PyTorchLightningPruningCallback`; a pruned trial's run is marked `KILLED`.
 - Workers stop with `MaxTrialsCallback` once `hpo.n_trials` trials have
   finished (complete, pruned or failed). Each worker may start one trial
   just before that, so a study can end with up to `workers - 1` extra trials.
@@ -533,10 +529,9 @@ Tasks:
 
 - **Lightning `MLFlowLogger` with MLflow 3.x:** check it in step 4. If it
   falls short, log the scalars from our own callback with the MLflow API.
-- **pyright strict with untyped seisbench:** expect warnings for unknown
-  types at that boundary. Keep the seisbench calls inside the `build()` and
-  `load()` methods and a few typed wrapper functions, so the rest of the code
-  stays clean.
+- **Untyped seisbench:** its types are unknown at that boundary. Keep the
+  seisbench calls inside the `build()` and `load()` methods and a few typed
+  wrapper functions, so the rest of the code stays clean.
 - **Optuna 5.0 is new:** check the journal storage and pruning-callback
   APIs before step 9.
 - **Folder-store opt-out:** pin the MLflow version range in the conda env

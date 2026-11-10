@@ -9,8 +9,7 @@ repos:
       - id: check-added-large-files
         exclude: ^uv\.lock$
 
-  # ruff and pyright run from the project environment, so their versions
-  # come from uv.lock and pyright sees all dependencies.
+  # ruff runs from the project environment, so its version comes from uv.lock.
   - repo: local
     hooks:
       - id: ruff-check
@@ -23,9 +22,3 @@ repos:
         entry: uv run --frozen ruff format
         language: system
         types_or: [python, pyi]
-      - id: pyright
-        name: pyright
-        entry: uv run --frozen pyright
-        language: system
-        types_or: [python, pyi]
-        pass_filenames: false

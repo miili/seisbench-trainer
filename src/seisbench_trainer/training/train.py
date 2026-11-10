@@ -160,7 +160,7 @@ def train(
         mlflow.flush_async_logging()
 
         # Lightning types this attribute loosely; it is the checkpoint path.
-        best_path = str(checkpoint.best_model_path)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        best_path = str(checkpoint.best_model_path)
         if not best_path:
             raise RuntimeError("training produced no checkpoint")
         epoch = _load_best(module, best_path)
