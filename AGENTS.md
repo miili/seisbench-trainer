@@ -108,7 +108,11 @@ Known defects and limits in the reference code. Fix these when porting:
   a fixed index.
 - **Sampling rate:** the dataset sampling rate, the window lengths in samples,
   the tolerances in seconds and the peak distances must stay consistent.
-  Convert seconds to samples once, in one place.
+  Convert seconds to samples once, in one place, always with
+  `data.sampling_rate`. A model runs at the data rate: pretrained weights at
+  another rate need an explicit `model.sampling_rate` (time-stretching, see
+  FR-M5b), never a silent mismatch. Decimate zero-phase
+  (`data.resample_zerophase`), as `annotate` does.
 - **Splits:** use the dataset's own `train_dev_test()` split, unless the
   dataset's `preprocessing` has a `resplit` step. A resplit keeps events
   together (`group_by`) and is seeded, so the test set is fixed for a config.

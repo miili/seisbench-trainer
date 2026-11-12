@@ -31,7 +31,9 @@ class PhaseNetConfig(PickerModelConfig):
         if pretrained.sampling_rate != sampling_rate:
             raise ValueError(
                 f"pretrained {self.pretrained!r} expects "
-                f"{pretrained.sampling_rate} Hz, the data has {sampling_rate} Hz"
+                f"{pretrained.sampling_rate} Hz, the data has {sampling_rate} Hz; "
+                f'set "model.sampling_rate" to {sampling_rate:g} to run the '
+                "weights time-stretched"
             )
         if pretrained.component_order != component_order:
             # Feeding another order would swap the channels the weights expect.
@@ -42,11 +44,10 @@ class PhaseNetConfig(PickerModelConfig):
             )
         return pretrained
 
-    def load_pretrained(self) -> sbm.PhaseNet:
+    def load_weights(self) -> sbm.PhaseNet:
         import seisbench.models as sbm
 
-        if self.pretrained is None:
-            raise ValueError("no pretrained weights configured")
+        assert self.pretrained is not None
         path = self.weights_path()
         if path is not None:
             return sbm.PhaseNet.load(path)

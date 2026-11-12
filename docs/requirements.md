@@ -152,6 +152,20 @@ Fixed decisions:
 - **FR-M5a:** Fine-tuning keeps the pretrained model's component order and
   sampling rate. If the data config differs, raise an error; never feed
   swapped channels to pretrained weights.
+- **FR-M5b Time-stretched weights:** `model.sampling_rate` (and
+  `evaluation.baseline.sampling_rate`) runs pretrained weights at another
+  rate, which must equal `data.sampling_rate`. The network then sees the
+  data as if it were at its native rate: time is stretched by native/new
+  (a 100 Hz PhaseNet at 50 Hz covers 60 s with its 3001 samples, e.g. for
+  low-frequency earthquakes). The exported model stores the new rate, so
+  `annotate` and Qseek resample their input to it. Sample-based
+  `default_args` of the weights (e.g. `blinding`, `overlap`) keep their
+  sample counts and so cover twice the time.
+- **FR-D7a Resampling:** datasets are resampled to `data.sampling_rate` on
+  access, with a zero-phase anti-alias filter by default
+  (`data.resample_zerophase`), as `annotate` does at inference. SeisBench's
+  own default (causal) delays the waveforms against the picks by about
+  45 ms when decimating 100 Hz to 50 Hz.
 - **FR-M6 Loss:** `model.loss` is a discriminated union (FR-C7) in
   `models/loss.py`; the adapter builds it for its model and computes it on
   the logits. PhaseNet has `cross_entropy`, soft-target cross-entropy over

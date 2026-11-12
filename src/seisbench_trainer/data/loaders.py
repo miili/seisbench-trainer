@@ -32,7 +32,9 @@ def load_splits(config: DataConfig, preload: bool = True) -> Splits:
     """Load every dataset, split each one, and concatenate the splits by type."""
     parts: list[tuple[AnyDataset, AnyDataset, AnyDataset]] = []
     for source in config.datasets:
-        dataset = source.load(config.component_order, config.sampling_rate)
+        dataset = source.load(
+            config.component_order, config.sampling_rate, config.resample_zerophase
+        )
         train, dev, test = dataset.train_dev_test()
         parts.append((train, dev, test))
     train, dev, test = (

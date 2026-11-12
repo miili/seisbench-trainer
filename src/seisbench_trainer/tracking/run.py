@@ -71,12 +71,14 @@ def model_description(
         if config.model.pretrained is None
         else f"fine-tuned from `{config.model.pretrained}`"
     )
+    if config.model.pretrained is not None and config.model.sampling_rate is not None:
+        start += f", its weights run (time-stretched) at {data.sampling_rate:g} Hz"
     selection = config.training.monitor
     best = f"`{selection}` = {score:.4g}" if score is not None else f"`{selection}`"
     return (
         f"{config.model.type} {start} on {dataset_label(config)}.\n\n"
         f"- Input: {data.component_order}, {data.sampling_rate:g} Hz, "
-        f"{window_samples} samples\n"
+        f"{window_samples} samples ({window_samples / data.sampling_rate:g} s)\n"
         f"- Best epoch {epoch} by {best}\n"
         + "".join(
             f"- `{phase}_threshold` = {value:.3f} (F1-optimal on the validation "

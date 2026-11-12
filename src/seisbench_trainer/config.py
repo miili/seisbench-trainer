@@ -113,6 +113,20 @@ class TrainConfig(StrictModel):
     )
 
     @model_validator(mode="after")
+    def _models_run_at_data_rate(self) -> Self:
+        rate = self.data.sampling_rate
+        for name, model in (
+            ("model", self.model),
+            ("evaluation.baseline", self.evaluation.baseline),
+        ):
+            if model is not None and model.sampling_rate not in (None, rate):
+                raise ValueError(
+                    f"{name}.sampling_rate ({model.sampling_rate:g} Hz) must "
+                    f"equal data.sampling_rate ({rate:g} Hz)"
+                )
+        return self
+
+    @model_validator(mode="after")
     def _check_search_space(self) -> Self:
         if self.hpo is not None:
             try:

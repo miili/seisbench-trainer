@@ -36,7 +36,18 @@ class DataConfig(StrictModel):
         default="ZNE",
         description="Waveform component order the model is trained on.",
     )
-    sampling_rate: PositiveFloat = Field(default=100.0, description="In Hz.")
+    sampling_rate: PositiveFloat = Field(
+        default=100.0,
+        description="In Hz. Every dataset is resampled to it on access; the pick "
+        "sample columns follow.",
+    )
+    resample_zerophase: bool = Field(
+        default=True,
+        description="Zero-phase anti-alias filter when a dataset is decimated "
+        "(seisbench's default is causal, which delays the waveforms against the "
+        "picks). True matches the default of the models' annotate, so training "
+        "and inference see the same filter.",
+    )
     batch_size: PositiveInt = 1024
     num_workers: PositiveInt = Field(
         default=8, description="DataLoader workers. Must be at least 1."

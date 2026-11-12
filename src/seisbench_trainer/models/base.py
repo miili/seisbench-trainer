@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import Field
+from pydantic import Field, PositiveFloat
 
 from seisbench_trainer.data.phases import PHASES, Augmentation
 from seisbench_trainer.models.loss import LossFunction
@@ -31,6 +31,15 @@ class PickerModelConfig(StrictModel, ABC):
         "'original') or a local SeisBench model path without suffix (the "
         ".json/.pt pair). None trains from scratch.",
     )
+    sampling_rate: PositiveFloat | None = Field(
+        default=None,
+        description="Run pretrained weights at this rate instead of their own: "
+        "data at this rate is fed as if it were at the original rate, which "
+        "stretches time by original/new (a 100 Hz PhaseNet at 50 Hz sees 3001 "
+        "samples = 60 s). The exported model stores it, so annotate and Qseek "
+        "resample their input to it. Must equal data.sampling_rate. None keeps "
+        "the weights' own rate.",
+    )
 
     def weights_path(self) -> Path | None:
         """``pretrained`` as a local model path, if it is one."""
@@ -47,12 +56,22 @@ class PickerModelConfig(StrictModel, ABC):
         exported model is fed the same order at inference.
         """
 
-    @abstractmethod
     def load_pretrained(self) -> sbm.WaveformModel:
         """The pretrained model in its own component order (e.g. a baseline).
 
-        Raises ``ValueError`` if no pretrained weights are configured.
+        Runs at ``sampling_rate`` if that is set. Raises ``ValueError`` if no
+        pretrained weights are configured.
         """
+        if self.pretrained is None:
+            raise ValueError("no pretrained weights configured")
+        model = self.load_weights()
+        if self.sampling_rate is not None:
+            model.sampling_rate = self.sampling_rate
+        return model
+
+    @abstractmethod
+    def load_weights(self) -> sbm.WaveformModel:
+        """The ``pretrained`` weights as stored, at their own sampling rate."""
 
     @abstractmethod
     def label_augmentations(
@@ -90,9 +109,12 @@ class PickerModelConfig(StrictModel, ABC):
         return path.name if path else self.pretrained
 
     def variant(self) -> str:
-        """Short description of the starting weights, e.g. 'from-original'."""
+        """Starting weights and rate override, e.g. 'from-original-50hz'."""
         label = self.weights_label()
-        return label if self.pretrained is None else f"from-{label}"
+        variant = label if self.pretrained is None else f"from-{label}"
+        if self.sampling_rate is not None:
+            variant += f"-{self.sampling_rate:g}hz"
+        return variant
 
     def window_samples(self, model: sbm.WaveformModel) -> int:
         """Default input window length."""

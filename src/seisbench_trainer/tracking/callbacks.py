@@ -79,7 +79,9 @@ class EvaluationCallback(pl.Callback):
         if model.sampling_rate != data.sampling_rate:
             raise ValueError(
                 f"baseline expects {model.sampling_rate} Hz, "
-                f"the data has {data.sampling_rate} Hz"
+                f"the data has {data.sampling_rate} Hz; set "
+                f'"evaluation.baseline.sampling_rate" to {data.sampling_rate:g} '
+                "to run it time-stretched"
             )
         missing = set(model.component_order) - set(data.component_order)
         if missing:

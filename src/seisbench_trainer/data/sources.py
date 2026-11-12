@@ -1,8 +1,9 @@
 """Dataset sources. Each source is one member of the ``DatasetConfig`` union.
 
 Every source loads a ``seisbench`` dataset with the run's component order and
-sampling rate, applies its optional metadata query and then its preprocessing
-steps (``data.preprocessing``).
+sampling rate (seisbench resamples each trace on access and rescales the
+``*_sample`` pick columns), applies its optional metadata query and then its
+preprocessing steps (``data.preprocessing``).
 """
 
 from __future__ import annotations
@@ -63,7 +64,12 @@ class SeisBenchDataset(StrictModel):
         """Short name for experiment and model names."""
         return self.name
 
-    def load(self, component_order: str, sampling_rate: float) -> sbd.WaveformDataset:
+    def load(
+        self,
+        component_order: str,
+        sampling_rate: float,
+        resample_zerophase: bool = True,
+    ) -> sbd.WaveformDataset:
         import seisbench.data as sbd
 
         dataset_class = getattr(sbd, self.name, None)
@@ -73,7 +79,10 @@ class SeisBenchDataset(StrictModel):
         ):
             raise ValueError(f"{self.name!r} is not a dataset class in seisbench.data")
         dataset = dataset_class(
-            component_order=component_order, sampling_rate=sampling_rate, cache="full"
+            component_order=component_order,
+            sampling_rate=sampling_rate,
+            resample_zerophase=resample_zerophase,
+            cache="full",
         )
         return _prepare(dataset, self.query, self.preprocessing)
 
@@ -93,13 +102,19 @@ class LocalDataset(StrictModel):
         """Short name for experiment and model names."""
         return self.path.name
 
-    def load(self, component_order: str, sampling_rate: float) -> sbd.WaveformDataset:
+    def load(
+        self,
+        component_order: str,
+        sampling_rate: float,
+        resample_zerophase: bool = True,
+    ) -> sbd.WaveformDataset:
         import seisbench.data as sbd
 
         dataset = sbd.WaveformDataset(
             self.path,
             component_order=component_order,
             sampling_rate=sampling_rate,
+            resample_zerophase=resample_zerophase,
             cache="full",
         )
         return _prepare(dataset, self.query, self.preprocessing)
@@ -148,13 +163,18 @@ class SyntheticDataset(StrictModel):
                 shutil.rmtree(tmp)
         return path
 
-    def load(self, component_order: str, sampling_rate: float) -> sbd.WaveformDataset:
+    def load(
+        self,
+        component_order: str,
+        sampling_rate: float,
+        resample_zerophase: bool = True,
+    ) -> sbd.WaveformDataset:
         local = LocalDataset(
             path=self.ensure_written(),
             query=self.query,
             preprocessing=self.preprocessing,
         )
-        return local.load(component_order, sampling_rate)
+        return local.load(component_order, sampling_rate, resample_zerophase)
 
 
 DatasetConfig = Annotated[
