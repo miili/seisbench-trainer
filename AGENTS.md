@@ -20,6 +20,8 @@ any code is written. Do not add modules ahead of the agreed plan.
 
 The requirements are in `docs/requirements.md`. The step-by-step
 implementation plan is in `docs/plan.md`; implement one step at a time.
+Training experiments that set defaults (loss, weights, selection metric)
+are recorded in `docs/experiments.md`; read it before changing a default.
 Decisions already made:
 
 - Pydantic v2 for configuration, one JSON file per run. No Hydra, no YAML,
@@ -144,7 +146,8 @@ Known defects and limits in the reference code. Fix these when porting:
   `det_S/f1`), and `det/f1_mean` is the mean of the P and S F1. Baseline
   metrics use the prefix `baseline/`, so they form one dashboard section.
   Test metrics are `test_…` and `baseline/test_…`. Keep this scheme; the
-  CLI table and the selection metric rely on it.
+  CLI table and `training.monitor` (a `Literal` of these names; its
+  min/max direction follows from the name) rely on it.
 - Do not log values every epoch that cannot change between epochs. The
   baseline (fixed weights, deterministic validation windows) and the
   counts are logged once.
@@ -164,6 +167,39 @@ Known defects and limits in the reference code. Fix these when porting:
   `pt2` model saved from CPU weights cannot be loaded on a GPU node, so we
   log with `serialization_format="pickle"` (plus an `input_example`).
 - The cluster uses conda. Do not assume `uv` in the Slurm scripts.
+
+## On the GFZ cluster
+
+- All GPU nodes of `qdefault` sit in the reservation `GPU`. A GPU job
+  without `--reservation=GPU` never starts, and squeue shows the misleading
+  reason `Priority`. Submit with
+  `sbatch --reservation=GPU slurm/train.sbatch <config>`.
+- The conda env has an editable install, so jobs run the code of the main
+  checkout as it is when they start (and import some modules late, e.g. at
+  the end of training). Do not edit, merge or switch branches in the main
+  checkout while jobs are queued or running; use a git worktree instead.
+- The version (setuptools-scm) is fixed at install time. After every
+  commit, run `pip install -e . --no-deps` in the conda env, or runs log a
+  stale version. Commit before launching runs: a dirty tree gives a
+  `.dYYYYMMDD` version that does not identify the code.
+- Compute nodes have no git executable; the package version carries the
+  commit. MLflow's "Failed to import Git" warnings in the job logs are
+  harmless.
+- pytest is not in the conda env. Run the tests against it with
+  `uv run --no-project --python <conda env>/bin/python --with pytest python -m pytest`.
+  There, `tests/test_hpo.py::test_two_workers_share_one_study` fails with
+  `FileNotFoundError .../bin/seisbench-trainer` (it looks for the console
+  script next to the interpreter); that is the environment, not the code.
+  To test a worktree, put its `src` first with `PYTHONPATH`, otherwise the
+  editable install of the main checkout is imported.
+- The cluster's `uv` (0.6) rewrites the whole `uv.lock` in an older
+  format. Do not run `uv lock` there; update the lock on the laptop.
+- The Rich progress bar does not reach the Slurm log while a run is going.
+  Follow progress in the MLflow metrics (one `det/f1_mean` row per epoch).
+- With pandas 3, `Series.to_numpy()` can return read-only arrays; combine
+  masks with `a = a | b`, not `a |= b`.
+- Experiment findings that set defaults are in `docs/experiments.md`.
+  Add new ones there, with the MLflow experiment and the commit.
 
 ## Working rules
 
