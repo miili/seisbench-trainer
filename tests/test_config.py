@@ -103,30 +103,23 @@ def test_preprocessing_steps_parse() -> None:
 
 
 @pytest.mark.parametrize(
-    ("value", "expected"), [(False, False), (None, False), (0.5, 0.5)]
+    ("monitor", "mode"),
+    [
+        ("val_loss", "min"),
+        ("det/f1_mean", "max"),
+        ("det_P/f1", "max"),
+        ("det_S/f1", "max"),
+    ],
 )
-def test_pick_mask_switch(value: object, expected: object) -> None:
-    raw = {"type": "PhaseNet", "loss": {"type": "cross_entropy", "pick_mask_s": value}}
-    assert TrainConfig.model_validate({"model": raw}).model.loss.pick_mask_s == expected
+def test_monitor_mode_follows_metric(monitor: str, mode: str) -> None:
+    config = TrainConfig.model_validate({"training": {"monitor": monitor}})
+    assert config.training.monitor_mode == mode
 
 
-def test_pick_mask_rejects_true() -> None:
-    raw = {"type": "PhaseNet", "loss": {"type": "cross_entropy", "pick_mask_s": True}}
-    with pytest.raises(ValidationError, match="distance in seconds or false"):
-        TrainConfig.model_validate({"model": raw})
-
-
-def test_pick_mask_covers_label_sigma() -> None:
-    raw = {
-        "model": {
-            "type": "PhaseNet",
-            "loss": {"type": "cross_entropy", "pick_mask_s": 0.3},
-        }
-    }
-    assert TrainConfig.model_validate(raw).model.loss.pick_mask_s == 0.3
-    narrow = raw | {"augmentation": {"label_sigma_s": 0.2}}
-    with pytest.raises(ValidationError, match="3 label sigmas"):
-        TrainConfig.model_validate(narrow)
+def test_loss_defaults() -> None:
+    loss = TrainConfig().model.loss
+    assert loss.from_logits
+    assert loss.weights == {"N": 0.5}
 
 
 def test_scheduler_defaults_to_none() -> None:
@@ -208,11 +201,13 @@ def test_scheduler_defaults_to_none() -> None:
             {
                 "model": {
                     "type": "PhaseNet",
-                    "loss": {"type": "cross_entropy", "pick_mask_s": 0.2},
+                    "loss": {"type": "cross_entropy", "pick_mask_s": 0.5},
                 }
             },
-            "value_error",
+            "extra_forbidden",
         ),
+        ({"training": {"monitor": "pick_P/mae_s"}}, "literal_error"),
+        ({"training": {"selection_mode": "max"}}, "extra_forbidden"),
     ],
 )
 def test_invalid_configs_rejected(raw: dict[str, Any], expected: str) -> None:

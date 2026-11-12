@@ -78,7 +78,7 @@ def train_command(
     run_id = train(config)
 
     metrics = mlflow.get_run(run_id).data.metrics
-    selection = f"best_{config.training.selection_metric}"
+    selection = f"best_{config.training.monitor}"
     console.print(f"Run [bold]{run_id}[/] ({mlflow.get_tracking_uri()})")
     if selection in metrics:
         console.print(f"{selection} = {metrics[selection]:.4g}")
@@ -177,14 +177,14 @@ def hpo_command(
         row: dict[str, str | float | int] = {
             "trial": trial.number,
             "state": trial.state.name,
-            config.training.selection_metric: trial.value or float("nan"),
+            config.training.monitor: trial.value or float("nan"),
         }
         params = trial.params.items()
         rows.append(
             row | {k: f"{v:.4g}" if isinstance(v, float) else str(v) for k, v in params}
         )
-    reverse = config.training.selection_mode == "max"
-    rows.sort(key=lambda r: _sort_value(r, config.training.selection_metric, reverse))
+    reverse = config.training.monitor_mode == "max"
+    rows.sort(key=lambda r: _sort_value(r, config.training.monitor, reverse))
     console.print(f"Study [bold]{config.hpo.study_name}[/]: {len(study.trials)} trials")
     console.print(evaluation_table(rows[:10]))
 

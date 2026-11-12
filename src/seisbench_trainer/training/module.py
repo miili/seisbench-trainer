@@ -20,7 +20,7 @@ class PickerModule(pl.LightningModule):
         self.model = config.model.build(
             config.data.component_order, config.data.sampling_rate
         )
-        self.loss = config.model.build_loss(self.model, config.data.sampling_rate)
+        self.loss = config.model.build_loss(self.model)
 
     @property
     def window_samples(self) -> int:
@@ -53,7 +53,7 @@ class PickerModule(pl.LightningModule):
         scheduler = training.scheduler.build(
             optimizer,
             epochs=training.epochs,
-            monitor=training.selection_metric,
-            mode=training.selection_mode,
+            monitor=training.monitor,
+            mode=training.monitor_mode,
         )
         return {"optimizer": optimizer, "lr_scheduler": scheduler}

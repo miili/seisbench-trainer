@@ -116,6 +116,6 @@ def test_two_workers_share_one_study(
     assert {c.data.tags["mlflow.parentRunId"] for c in children} == {parent.info.run_id}
     assert all(c.data.tags["hpo.study"] == "s" for c in children)
     assert parent.info.status == "FINISHED"
-    assert "best_val_loss" in parent.data.metrics
+    assert "best_det/f1_mean" in parent.data.metrics
     best = load_dict(f"runs:/{parent.info.run_id}/best_trial.json")
     assert set(best["params"]) == {"training.optimizer.lr"}

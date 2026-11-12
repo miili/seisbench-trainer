@@ -37,8 +37,7 @@
       "lr": 0.003,
       "weight_decay": 0.0
     },
-    "selection_metric": "det/f1_mean",
-    "selection_mode": "max"
+    "monitor": "det/f1_mean"
   },
   "tracking": {
     "tags": {

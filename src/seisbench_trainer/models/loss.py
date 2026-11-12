@@ -9,10 +9,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Literal, Protocol
 
-from pydantic import Field, NonNegativeFloat, PositiveFloat, field_validator
+from pydantic import Field, NonNegativeFloat, PositiveFloat
 
 from seisbench_trainer.schema import StrictModel
-from seisbench_trainer.units import seconds_to_samples
 
 if TYPE_CHECKING:
     from torch import Tensor
@@ -24,21 +23,26 @@ class LossFunction(Protocol):
     def __call__(self, logits: Tensor, batch: Batch) -> Tensor: ...
 
 
+def _noise_down_weighted() -> dict[str, float]:
+    return {"N": 0.5}
+
+
 class CrossEntropyLoss(StrictModel):
     """Soft-target cross-entropy over the softmax output channels (PhaseNet).
 
-    Per sample, ``-sum_c w_c * y_c * log(q_c)``; averaged over the samples of
-    each window, then over the batch. The default takes ``log_softmax`` of
-    the logits, as the original PhaseNet. ``from_logits=False`` gives
-    SeisBench's pick-benchmark ``vector_cross_entropy``
-    (``log(softmax + eps)``); both trained equally well on BohemiaSaxony.
+    Per sample, ``-sum_c w_c * y_c * log(q_c)``; averaged over the samples
+    and the batch. The default takes ``log_softmax`` of the logits, as the
+    original PhaseNet, and weighs the noise channel 0.5. ``from_logits=False``
+    and ``weights={}`` give SeisBench's pick-benchmark ``vector_cross_entropy``
+    (``log(softmax + eps)``, unweighted).
     """
 
     type: Literal["cross_entropy"] = "cross_entropy"
     weights: dict[str, NonNegativeFloat] = Field(
-        default_factory=dict[str, NonNegativeFloat],
-        description="Weight per output channel, by label (e.g. {'P': 1, 'S': 1, "
-        "'N': 0.5}). Missing channels weigh 1.",
+        default_factory=_noise_down_weighted,
+        description="Weight per output channel, by label; missing channels weigh "
+        "1. The default N 0.5 balances P and S against the far more frequent "
+        "noise samples: on BohemiaSaxony it gave the best F1 and pick times.",
     )
     from_logits: bool = Field(
         default=True,
@@ -49,24 +53,8 @@ class CrossEntropyLoss(StrictModel):
     eps: PositiveFloat = Field(
         default=1e-5, description="Added to the softmax when from_logits is false."
     )
-    pick_mask_s: Literal[False] | PositiveFloat = Field(
-        default=False,
-        description="In windows with picks, only samples within this distance of "
-        "a pick enter the loss; the noise far from the picks is masked out. "
-        "Windows without picks are never masked. Must cover the label curve "
-        "(at least 3 label sigmas). false (or null) disables the mask.",
-    )
 
-    @field_validator("pick_mask_s", mode="before")
-    @classmethod
-    def _mask_off(cls, value: object) -> object:
-        if value is None:
-            return False
-        if value is True:
-            raise ValueError("pick_mask_s takes a distance in seconds or false")
-        return value
-
-    def build(self, labels: str, sampling_rate: float) -> LossFunction:
+    def build(self, labels: str) -> LossFunction:
         """The loss for a model with these output ``labels`` (e.g. 'PSN')."""
         unknown = set(self.weights) - set(labels)
         if unknown:
@@ -74,31 +62,18 @@ class CrossEntropyLoss(StrictModel):
                 f"loss weights for unknown labels {sorted(unknown)}; "
                 f"the model outputs {labels!r}"
             )
-        mask_samples = (
-            None
-            if self.pick_mask_s is False
-            else seconds_to_samples(self.pick_mask_s, sampling_rate)
-        )
         return _CrossEntropy(
             [self.weights.get(label, 1.0) for label in labels],
             self.from_logits,
             self.eps,
-            mask_samples,
         )
 
 
 class _CrossEntropy:
-    def __init__(
-        self,
-        weights: list[float],
-        from_logits: bool,
-        eps: float,
-        mask_samples: int | None,
-    ) -> None:
+    def __init__(self, weights: list[float], from_logits: bool, eps: float) -> None:
         self.weights = weights
         self.from_logits = from_logits
         self.eps = eps
-        self.mask_samples = mask_samples
 
     def __call__(self, logits: Tensor, batch: Batch) -> Tensor:
         import torch
@@ -109,27 +84,7 @@ class _CrossEntropy:
             log_q = torch.log(torch.softmax(logits, dim=1) + self.eps)
         weights = torch.tensor(self.weights, dtype=log_q.dtype, device=log_q.device)
         target = batch["y"] * weights[None, :, None]
-        per_sample = -(target * log_q).sum(dim=1)  # (batch, sample)
-        if self.mask_samples is None:
-            return per_sample.mean()
-        mask = pick_mask(batch["pick_samples"], per_sample.shape[-1], self.mask_samples)
-        per_window = (per_sample * mask).sum(dim=-1) / mask.sum(dim=-1)
-        return per_window.mean()
-
-
-def pick_mask(pick_samples: Tensor, n_samples: int, half_width: int) -> Tensor:
-    """Samples within ``half_width`` of a pick; all samples if a window has none.
-
-    ``pick_samples`` has shape (batch, phase, max_picks), NaN-padded (from
-    ``data.augmentations.PickSamples``). Returns a float mask (batch, sample).
-    """
-    import torch
-
-    picks = pick_samples.flatten(1)  # (batch, picks)
-    times = torch.arange(n_samples, device=picks.device, dtype=picks.dtype)
-    near = (times[None, None, :] - picks[:, :, None]).abs() <= half_width
-    has_pick = (~picks.isnan()).any(dim=1, keepdim=True)
-    return (near.any(dim=1) | ~has_pick).to(picks.dtype)
+        return -(target * log_q).sum(dim=1).mean()
 
 
 PhaseNetLoss = Annotated[CrossEntropyLoss, Field(discriminator="type")]

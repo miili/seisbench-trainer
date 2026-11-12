@@ -126,7 +126,6 @@ def test_train_loader_batches(synthetic_path: Path) -> None:
     assert tuple(batch["X"].shape) == (16, 3, WINDOW)
     assert tuple(batch["y"].shape) == (16, 3, WINDOW)
     assert str(batch["X"].dtype) == "torch.float32"
-    assert tuple(batch["pick_samples"].shape) == (16, len(PHASES), 4)
 
 
 def items(generator: sbg.GenericGenerator) -> list[dict[str, NDArray[Any]]]:

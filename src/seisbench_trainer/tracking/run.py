@@ -71,7 +71,7 @@ def model_description(
         if config.model.pretrained is None
         else f"fine-tuned from `{config.model.pretrained}`"
     )
-    selection = config.training.selection_metric
+    selection = config.training.monitor
     best = f"`{selection}` = {score:.4g}" if score is not None else f"`{selection}`"
     return (
         f"{config.model.type} {start} on {dataset_label(config)}.\n\n"

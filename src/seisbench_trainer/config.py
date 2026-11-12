@@ -22,9 +22,14 @@ from seisbench_trainer.models import ModelConfig, PhaseNetConfig
 from seisbench_trainer.schema import StrictModel
 from seisbench_trainer.training.optim import (
     AdamConfig,
+    Mode,
     OptimizerConfig,
     SchedulerConfig,
 )
+
+Monitor = Literal["val_loss", "det/f1_mean", "det_P/f1", "det_S/f1"]
+"""Validation metrics that can rank models. ``val_loss`` is minimized, the F1
+scores are maximized."""
 
 
 class TrainingConfig(StrictModel):
@@ -32,11 +37,12 @@ class TrainingConfig(StrictModel):
     seed: int = 42
     accelerator: Literal["auto", "cpu", "gpu"] = "auto"
     precision: Literal["32-true", "16-mixed", "bf16-mixed"] = "32-true"
-    selection_metric: str = Field(
-        default="val_loss",
-        description="Metric for checkpointing, early stopping, HPO and the registry.",
+    monitor: Monitor = Field(
+        default="det/f1_mean",
+        description="Validation metric that picks the best model: checkpointing, "
+        "early stopping, the plateau scheduler, HPO and the registry. val_loss "
+        "is minimized, the F1 scores are maximized.",
     )
-    selection_mode: Literal["min", "max"] = "min"
     early_stopping_patience: PositiveInt | None = Field(
         default=None, description="Epochs without improvement. None disables it."
     )
@@ -47,6 +53,11 @@ class TrainingConfig(StrictModel):
         description="Local or scratch directory for Lightning checkpoints. "
         "They are not uploaded to MLflow.",
     )
+
+    @property
+    def monitor_mode(self) -> Mode:
+        """Direction of ``monitor``: 'min' for the loss, 'max' for F1."""
+        return "min" if self.monitor == "val_loss" else "max"
 
 
 class EvaluationConfig(StrictModel):
@@ -100,19 +111,6 @@ class TrainConfig(StrictModel):
     hpo: HPOConfig | None = Field(
         default=None, description="Hyperparameter search; used by the hpo command."
     )
-
-    @model_validator(mode="after")
-    def _mask_covers_labels(self) -> Self:
-        mask_s = self.model.loss.pick_mask_s
-        sigma_s = self.augmentation.label_sigma_s
-        # tolerance: 3 * 0.1 is slightly above 0.3
-        if mask_s is not False and mask_s < 3 * sigma_s - 1e-9:
-            raise ValueError(
-                f"model.loss.pick_mask_s ({mask_s} s) must be at least 3 label "
-                f"sigmas (3 * augmentation.label_sigma_s = {3 * sigma_s:g} s), "
-                "or it cuts off the label curves"
-            )
-        return self
 
     @model_validator(mode="after")
     def _check_search_space(self) -> Self:

@@ -45,7 +45,7 @@ def test_train_end_to_end(
     # metrics per epoch, the best value, and system metrics
     assert len(client.get_metric_history(run_id, "val_loss")) == 2
     assert client.get_metric_history(run_id, "train_loss")
-    assert "best_val_loss" in run.data.metrics
+    assert "best_det/f1_mean" in run.data.metrics
     expected = ("pick_P/mae_s", "pick_S/auc", "det_P/f1", "det_S/recall", "det/f1_mean")
     for key in expected:
         assert len(client.get_metric_history(run_id, key)) == 2, key
@@ -82,7 +82,7 @@ def test_train_end_to_end(
     assert models[0].name == model_name(config)
     description = models[0].tags["mlflow.note.content"]
     assert "trained from scratch" in description
-    assert "Best epoch" in description and "val_loss" in description
+    assert "Best epoch" in description and "det/f1_mean" in description
     download = Path(
         download_artifacts(
             f"models:/{models[0].model_id}", dst_path=str(tmp_path / "download")
@@ -135,9 +135,6 @@ def test_train_with_baseline_and_detection_selection(
     )
     config = config.model_copy(
         update={
-            "training": config.training.model_copy(
-                update={"selection_metric": "det/f1_mean", "selection_mode": "max"}
-            ),
             "evaluation": config.evaluation.model_copy(
                 update={"baseline": TrainConfig().evaluation.baseline}
             ),

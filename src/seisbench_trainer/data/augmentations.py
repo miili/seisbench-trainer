@@ -96,12 +96,8 @@ def _normalize(config: AugmentationConfig) -> list[Augmentation]:
 def train_augmentations(
     config: AugmentationConfig, context: StepContext
 ) -> list[Augmentation]:
-    """The configured training steps, normalization, then ``pick_samples``."""
-    return [
-        *(step.build(context) for step in config.train),
-        *_normalize(config),
-        PickSamples(context.window_samples),
-    ]
+    """The configured training steps, then normalization."""
+    return [*(step.build(context) for step in config.train), *_normalize(config)]
 
 
 def eval_augmentations(

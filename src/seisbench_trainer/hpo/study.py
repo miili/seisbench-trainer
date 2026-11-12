@@ -51,7 +51,7 @@ def _open_study(config: TrainConfig) -> tuple[optuna.Study, str]:
     # O_EXCL lock files work on NFS (the cluster's shared filesystem).
     storage = JournalStorage(JournalFileBackend(path, JournalFileOpenLock(path)))
     experiment_id = set_experiment(experiment_name(config))
-    minimize = config.training.selection_mode == "min"
+    minimize = config.training.monitor_mode == "min"
     setup = JournalFileOpenLock(f"{path}.setup")
     setup.acquire()
     try:
@@ -85,7 +85,7 @@ def _objective(
     config: TrainConfig, splits: Splits, parent: str
 ) -> Callable[[optuna.Trial], float]:
     hpo = _hpo(config)
-    metric = config.training.selection_metric
+    metric = config.training.monitor
 
     def objective(trial: optuna.Trial) -> float:
         values: dict[str, JsonValue] = {p.path: p.suggest(trial) for p in hpo.params}
@@ -142,7 +142,7 @@ def summarize(study: optuna.Study, config: TrainConfig) -> None:
             "best_trial.json",
         )
         client.set_tag(parent, "hpo.best_trial", str(best.number))
-        metric = f"best_{config.training.selection_metric}"
+        metric = f"best_{config.training.monitor}"
         client.log_metric(parent, metric, cast(float, best.value), step=len(complete))
     plots = {
         "optimization_history": optuna_plots.plot_optimization_history,

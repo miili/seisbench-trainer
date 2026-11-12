@@ -105,7 +105,7 @@ def test_loss_prefers_the_target() -> None:
     target[0, 0, 40:60] = torch.linspace(0, 1, 20)
     target[0, 2] -= target[0, 0]
     batch: Batch = {"y": target}
-    loss = PhaseNetConfig().loss.build("PSN", SAMPLING_RATE)
+    loss = PhaseNetConfig().loss.build("PSN")
     matching = torch.log(target + 1e-9)  # softmax of these logits is the target
     assert loss(matching, batch) < loss(torch.zeros_like(target), batch)
     assert loss(matching, batch) >= 0

@@ -74,7 +74,5 @@ class PhaseNetConfig(PickerModelConfig):
     def activate(self, logits: Tensor) -> Tensor:
         return logits.softmax(dim=1)
 
-    def build_loss(
-        self, model: sbm.WaveformModel, sampling_rate: float
-    ) -> LossFunction:
-        return self.loss.build(model.labels, sampling_rate)
+    def build_loss(self, model: sbm.WaveformModel) -> LossFunction:
+        return self.loss.build(model.labels)

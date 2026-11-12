@@ -29,8 +29,7 @@ FIXED_PATHS = (
     "data.datasets",
     "data.component_order",
     "data.sampling_rate",
-    "training.selection_metric",
-    "training.selection_mode",
+    "training.monitor",
     "hpo",
 )
 """Config paths a trial must not change: the preloaded data and the objective."""

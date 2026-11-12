@@ -73,9 +73,7 @@ class PickerModelConfig(StrictModel, ABC):
         return self.activate(self.forward_logits(model, x))
 
     @abstractmethod
-    def build_loss(
-        self, model: sbm.WaveformModel, sampling_rate: float
-    ) -> LossFunction:
+    def build_loss(self, model: sbm.WaveformModel) -> LossFunction:
         """The configured training loss on ``forward_logits`` and the batch."""
 
     def phase_probabilities(

@@ -341,7 +341,7 @@ open.
   tagged `mlflow.experimentKind=custom_model_development`, so the MLflow 3
   UI does not treat them as GenAI. `det/f1_mean` is the mean of the P and S
   F1, usable as
-  `training.selection_metric` (with `selection_mode: "max"`).
+  `training.monitor`.
 - Metrics go through `pl_module.log_dict`, so checkpointing, early stopping
   and (later) HPO can use them.
 - One figure per phase and epoch: residual histogram, P/R/F1 against

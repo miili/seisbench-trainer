@@ -53,8 +53,8 @@ def _callbacks(
     if training.early_stopping_patience is not None:
         callbacks.append(
             EarlyStopping(
-                monitor=training.selection_metric,
-                mode=training.selection_mode,
+                monitor=training.monitor,
+                mode=training.monitor_mode,
                 patience=training.early_stopping_patience,
             )
         )
@@ -140,8 +140,8 @@ def train(
         checkpoint = ModelCheckpoint(
             dirpath=Path(config.training.checkpoint_dir) / run_id,
             filename="best",
-            monitor=config.training.selection_metric,
-            mode=config.training.selection_mode,
+            monitor=config.training.monitor,
+            mode=config.training.monitor_mode,
             save_weights_only=True,
         )
         trainer = pl.Trainer(
@@ -180,7 +180,7 @@ def train(
         )
         if score is not None:
             mlflow.log_metric(
-                f"best_{config.training.selection_metric}",
+                f"best_{config.training.monitor}",
                 score,
                 step=epoch,
                 model_id=model_id,

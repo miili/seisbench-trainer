@@ -159,12 +159,11 @@ Fixed decisions:
   (`from_logits: true`, as the original PhaseNet). `from_logits: false`
   reproduces SeisBench's pick-benchmark `vector_cross_entropy`
   (`log(softmax + eps)`); on BohemiaSaxony both trained equally well
-  (loss grid, 2026-11-12). Options: `weights` per output channel
-  by label (PhaseNet's `class_weights`, applied per channel inside the sum),
-  and `pick_mask_s` (`false` turns it off): in windows with picks, only samples within this
-  distance of a pick enter the loss, which removes most of the noise
-  samples; windows without picks are never masked. The mask must cover
-  3 label sigmas. Training batches carry `pick_samples` for it.
+  (loss grid, 2026-11-12). `weights` per output channel by label
+  (PhaseNet's `class_weights`, applied per channel inside the sum) default
+  to `{"N": 0.5}`, which gave the best F1 and pick times in that grid
+  (N 1, 0.5 and 0.2). A loss mask around the picks was tried and dropped:
+  it raised false picks at every mask width (0.5 s, 2 s, 5 s).
 
 ### 3.4 Training
 
@@ -176,9 +175,11 @@ Fixed decisions:
   The default is `auto`, so the same config runs on CPU and GPU.
 - **FR-T4:** Set the seed for everything (`seed_everything(workers=True)`)
   and log it.
-- **FR-T5:** The selection metric (for example `val_loss`, or the mean of
-  P and S validation F1) can be set in the config. Checkpointing, early
-  stopping, HPO and the model registry all use the same metric.
+- **FR-T5:** `training.monitor` selects the best model: `det/f1_mean`
+  (the default, the mean of P and S validation F1), `det_P/f1`, `det_S/f1`
+  or `val_loss`. Its direction follows from the metric (the loss is
+  minimized, F1 maximized). Checkpointing, early stopping, the plateau
+  scheduler, HPO and the model registry all use it.
 
 ### 3.5 Evaluation
 

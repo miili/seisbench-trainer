@@ -16,8 +16,7 @@
   "training": {
     "epochs": 30,
     "accelerator": "gpu",
-    "selection_metric": "det/f1_mean",
-    "selection_mode": "max"
+    "monitor": "det/f1_mean"
   },
   "evaluation": {"baseline": null},
   "tracking": {"tags": {"purpose": "hpo"}},
