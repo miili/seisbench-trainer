@@ -85,9 +85,10 @@ scheduler (factor 0.5) and early stopping. Best-epoch scores:
 - Plateau 3 with stop 10 matches cosine without an epoch count: five
   halvings, then the stop. Stop 15 was best on every metric, but within
   the noise of plateau 3, at 1.6 times the time.
-- Default: plateau patience 3, early stopping 10, `min_delta` 0.002,
-  `epochs` 100 as the limit. For the last bit of accuracy on a final
-  model, `early_stopping_patience: 15` is worth trying.
+- Default: plateau patience 5, early stopping 15, `min_delta` 0.002,
+  `epochs` 100 as the limit: the best run, chosen for accuracy over time
+  (about 40 min per BohemiaSaxony run). Plateau 3 with stop 10 is the
+  faster option at about the same F1.
 
 ## Reference recipes
 

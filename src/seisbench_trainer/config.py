@@ -36,8 +36,8 @@ scores are maximized."""
 
 class TrainingConfig(StrictModel):
     """Training loop. By default every run finds its own length: the plateau
-    scheduler halves the learning rate after 3 epochs without improvement and
-    early stopping ends the run after 10; ``epochs`` is only the limit."""
+    scheduler halves the learning rate after 5 epochs without improvement and
+    early stopping ends the run after 15; ``epochs`` is only the limit."""
 
     epochs: PositiveInt = Field(
         default=100,
@@ -53,7 +53,7 @@ class TrainingConfig(StrictModel):
         "is minimized, the F1 scores are maximized.",
     )
     early_stopping_patience: PositiveInt | None = Field(
-        default=10,
+        default=15,
         description="Stop after this many epochs without improvement. None "
         "disables it (needed for the cosine scheduler).",
     )

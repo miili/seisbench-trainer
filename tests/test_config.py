@@ -126,7 +126,7 @@ def test_loss_defaults() -> None:
 def test_defaults_find_the_run_length() -> None:
     training = TrainConfig().training
     assert training.scheduler == PlateauConfig()
-    assert training.early_stopping_patience == 10
+    assert training.early_stopping_patience == 15
     assert training.scheduler.patience < training.early_stopping_patience
     assert training.min_delta == 0.002
     assert training.epochs == 100

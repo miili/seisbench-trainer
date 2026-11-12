@@ -165,7 +165,7 @@ def test_early_stopping_uses_min_delta() -> None:
     callbacks = train_module._callbacks(TrainConfig(), placeholder, placeholder)
     (stopping,) = [c for c in callbacks if isinstance(c, EarlyStopping)]
     assert stopping.monitor == "det/f1_mean"
-    assert stopping.patience == 10
+    assert stopping.patience == 15
     assert abs(stopping.min_delta) == 0.002
     no_stop = TrainConfig.model_validate(
         {"training": {"early_stopping_patience": None}}
