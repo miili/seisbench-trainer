@@ -135,9 +135,7 @@ def test_fine_tuning_at_50hz_exports_a_50hz_model(
     download = Path(
         download_artifacts(f"models:/{logged.model_id}", dst_path=str(tmp_path / "dl"))
     )
-    (exported,) = [
-        p for p in download.rglob("*.json") if p.parent.name == "extra_files"
-    ]
+    (exported,) = [p for p in download.rglob("*.pt") if p.parent.name == "extra_files"]
     model = sbm.PhaseNet.load(exported.with_suffix(""))
     assert model.sampling_rate == STRETCHED
 

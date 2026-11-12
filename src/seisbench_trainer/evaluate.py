@@ -36,6 +36,7 @@ from seisbench_trainer.metrics.scores import (
     threshold_curve,
 )
 from seisbench_trainer.models import ModelConfig
+from seisbench_trainer.tracking.run import TRAIN_CONFIG
 from seisbench_trainer.units import seconds_to_samples
 
 logger = logging.getLogger(__name__)
@@ -95,11 +96,17 @@ def load_model(ref: str) -> LoadedModel:
     """
     if ref.startswith("models:/") or RUN_ID.fullmatch(ref):
         model_id = _model_id(ref)
-        run_id = mlflow.get_logged_model(model_id).source_run_id
-        source = TrainConfig.model_validate(load_dict(f"runs:/{run_id}/config.json"))
         with TemporaryDirectory() as tmp:
             path = Path(download_artifacts(f"models:/{model_id}", dst_path=tmp))
-            export = next((path / "extra_files").glob("*.json")).with_suffix("")
+            extra = path / "extra_files"
+            stored = extra / TRAIN_CONFIG
+            if stored.is_file():
+                source = TrainConfig.model_validate_json(stored.read_text())
+            else:  # models logged before the config was stored with them
+                run_id = mlflow.get_logged_model(model_id).source_run_id
+                logged = load_dict(f"runs:/{run_id}/config.json")
+                source = TrainConfig.model_validate(logged)
+            export = next(extra.glob("*.pt")).with_suffix("")
             weights = source.model.model_copy(update={"pretrained": str(export)})
             model = weights.load_pretrained()
         return LoadedModel(source.model, model, export.name, model_id, source)

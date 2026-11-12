@@ -23,6 +23,8 @@ TRACKED_PACKAGES = ("seisbench-trainer", "seisbench", "torch", "lightning", "mlf
 EXPERIMENT_KIND = "mlflow.experimentKind"
 MODEL_TRAINING = "custom_model_development"
 DESCRIPTION = "mlflow.note.content"
+TRAIN_CONFIG = "train_config.json"
+"""The run config, stored in the logged model's ``extra_files``."""
 SLURM_VARIABLES = ("SLURM_JOB_ID", "SLURM_ARRAY_JOB_ID", "SLURM_ARRAY_TASK_ID")
 
 
@@ -142,8 +144,9 @@ def log_seisbench_model(
 
     Returns the model ID. The SeisBench ``.json``/``.pt`` pair is stored under
     the model's ``extra_files`` and loads with ``sbm.<Model>.load()``. The
-    detection ``thresholds`` go into its ``default_args``; the validation
-    ``figures`` (PNG per phase) are stored next to it.
+    detection ``thresholds`` go into its ``default_args``; the resolved run
+    config (``TRAIN_CONFIG``) and the validation ``figures`` (PNG per phase)
+    are stored next to it, so the model alone reproduces its training.
     """
     if model.component_order != config.data.component_order:
         raise ValueError(
@@ -160,6 +163,9 @@ def log_seisbench_model(
         path = Path(tmp) / model_name(config)
         model.save(path)
         files = [str(path.with_suffix(suffix)) for suffix in (".json", ".pt")]
+        config_path = Path(tmp) / TRAIN_CONFIG
+        config_path.write_text(config.model_dump_json(indent=2))
+        files.append(str(config_path))
         for phase, png in (figures or {}).items():
             figure_path = Path(tmp) / f"validation_{phase}_epoch{step}.png"
             figure_path.write_bytes(png)

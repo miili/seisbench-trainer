@@ -88,10 +88,14 @@ def test_train_end_to_end(
             f"models:/{models[0].model_id}", dst_path=str(tmp_path / "download")
         )
     )
-    exported = sorted(download.rglob("*.json"))
-    exported = [path for path in exported if path.parent.name == "extra_files"]
-    assert [path.stem for path in exported] == [model_name(config)]
-    model = sbm.PhaseNet.load(exported[0].with_suffix(""))
+    extra = next(download.rglob("extra_files"))
+    assert {path.name for path in extra.glob("*.json")} == {
+        f"{model_name(config)}.json",
+        tracking_run.TRAIN_CONFIG,
+    }
+    stored = (extra / tracking_run.TRAIN_CONFIG).read_text()
+    assert TrainConfig.model_validate_json(stored) == config
+    model = sbm.PhaseNet.load(extra / model_name(config))
     assert model.component_order == config.data.component_order
 
     # thresholds selected on the validation set (logged as float32)
@@ -99,7 +103,7 @@ def test_train_end_to_end(
         value = model.default_args[f"{phase}_threshold"]
         logged = client.get_metric_history(run_id, f"det_{phase}/threshold")
         assert any(abs(value - m.value) < 1e-6 for m in logged)
-    figures = sorted(p.name for p in exported[0].parent.glob("*.png"))
+    figures = sorted(p.name for p in extra.glob("*.png"))
     assert figures and all(name.startswith("validation_") for name in figures)
 
 
