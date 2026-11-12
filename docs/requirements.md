@@ -220,9 +220,13 @@ validation set after every epoch and logged with the epoch as the step.
   - residual statistics: mean, median, MAE, RMS, the 5/25/75/95
     percentiles, the median absolute deviation (MAD) and the fraction of
     residuals within each tolerance;
-  - ROC AUC, and precision/recall/F1 against the threshold, using the peak
+  - ROC AUC, average precision (`ap`, the area under the precision-recall
+    curve), and precision/recall/F1 against the threshold, using the peak
     value in the window as the score for a pick and the peak value on
-    pick-free traces as the score for noise.
+    pick-free traces as the score for noise. ROC AUC ignores how many
+    negatives there are: on BohemiaSaxony it ranked the models with the
+    most false picks highest (rank correlation with F1 -0.62), so it is a
+    diagnostic, never a selection metric. `ap` counts false picks.
 
   The residual statistics are given both without a threshold and at the
   selected threshold.

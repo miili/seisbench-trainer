@@ -46,7 +46,15 @@ def test_train_end_to_end(
     assert len(client.get_metric_history(run_id, "val_loss")) == 2
     assert client.get_metric_history(run_id, "train_loss")
     assert "best_det/f1_mean" in run.data.metrics
-    expected = ("pick_P/mae_s", "pick_S/auc", "det_P/f1", "det_S/recall", "det/f1_mean")
+    expected = (
+        "pick_P/mae_s",
+        "pick_S/auc",
+        "pick_P/ap",
+        "det_P/f1",
+        "det_S/recall",
+        "det_S/ap",
+        "det/f1_mean",
+    )
     for key in expected:
         assert len(client.get_metric_history(run_id, key)) == 2, key
     assert not any(key.startswith("baseline") for key in run.data.metrics)

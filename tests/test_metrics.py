@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 
 from seisbench_trainer.metrics import (
     PickScores,
+    average_precision,
     detect_picks,
     pick_accuracy,
     residual_summary,
@@ -180,6 +181,32 @@ def test_roc_auc_matches_pairwise_definition() -> None:
 
 def test_roc_auc_needs_both_classes() -> None:
     assert np.isnan(roc_auc(scores([0.9], [])))
+
+
+@pytest.mark.parametrize(
+    ("true", "negative", "expected"),
+    [
+        ([0.9, 0.8], [0.1, 0.2], 1.0),
+        ([0.9, 0.4], [0.6], 0.5 * 1.0 + 0.5 * 2 / 3),
+        ([0.9, 0.0], [], 0.5),  # the missed pick is never found
+        ([0.0], [0.3], 0.0),
+    ],
+)
+def test_average_precision_known_values(
+    true: list[float], negative: list[float], expected: float
+) -> None:
+    assert average_precision(scores(true, negative)) == pytest.approx(expected)
+
+
+def test_average_precision_counts_false_picks() -> None:
+    """More false picks at the same scores: ROC AUC unchanged, AP falls."""
+    few, many = scores([0.9, 0.5], [0.6]), scores([0.9, 0.5], [0.6] * 10)
+    assert roc_auc(few) == roc_auc(many) == pytest.approx(0.5)
+    assert average_precision(many) < average_precision(few)
+
+
+def test_average_precision_needs_true_picks() -> None:
+    assert np.isnan(average_precision(scores([], [0.5])))
 
 
 def test_residual_summary_known_values() -> None:

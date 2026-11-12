@@ -1,4 +1,5 @@
-"""Scores from ``PickScores``: threshold curves, ROC AUC, residual statistics."""
+"""Scores from ``PickScores``: threshold curves, ROC AUC, average precision,
+residual statistics."""
 
 from __future__ import annotations
 
@@ -80,6 +81,34 @@ def roc_auc(scores: PickScores) -> float:
     return float(np.trapezoid(true_rate, false_rate))
 
 
+def average_precision(scores: PickScores) -> float:
+    """Area under the precision-recall curve (step-wise, as scikit-learn).
+
+    Unlike the ROC AUC it counts false picks against the true ones, so it
+    falls when a model fires on noise, even if it ranks picks above noise.
+    True picks with score 0 were not found and are misses at every
+    threshold. NaN without true picks.
+    """
+    n_true = scores.scores.size
+    if not n_true:
+        return float("nan")
+    found = scores.scores[scores.scores > 0]
+    values = np.r_[found, scores.negative_scores]
+    if not values.size:
+        return 0.0
+    is_true = np.r_[np.ones(found.size), np.zeros(scores.negative_scores.size)]
+    order = np.argsort(-values, kind="stable")
+    true_positive = np.cumsum(is_true[order])
+    false_positive = np.cumsum(1 - is_true[order])
+    # last position of each distinct score: ties move together
+    distinct = np.r_[np.flatnonzero(np.diff(values[order])), values.size - 1]
+    precision = true_positive[distinct] / (
+        true_positive[distinct] + false_positive[distinct]
+    )
+    recall = true_positive[distinct] / n_true
+    return float(np.sum(np.diff(np.r_[0.0, recall]) * precision))
+
+
 def residual_summary(
     residuals_s: FloatArray, tolerances_s: list[float]
 ) -> dict[str, float]:
@@ -110,7 +139,8 @@ def summarize(
 ) -> dict[str, float]:
     """Scalar metrics of one family and phase, for logging.
 
-    Detection quality at the F1-optimal threshold, ROC AUC, counts, and the
+    Detection quality at the F1-optimal threshold, ROC AUC, average
+    precision (``ap``), counts, and the
     residual statistics of all true picks (``*_s``) and of the picks found at
     the selected threshold (``*_s_at_threshold``).
     """
@@ -126,6 +156,7 @@ def summarize(
         "recall": float(curve.recall[best]),
         "f1": float(curve.f1[best]),
         "auc": roc_auc(scores),
+        "ap": average_precision(scores),
         "n_picks": float(scores.scores.size),
         "n_negatives": float(scores.negative_scores.size),
         **residual_summary(residuals_s, tolerances_s),
