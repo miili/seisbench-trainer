@@ -66,7 +66,8 @@ Fixed decisions:
   - models: `PhaseNetConfig | EQTransformerConfig`, tagged by `type`;
   - datasets: `SeisBenchDataset | LocalDataset`, tagged by `type`;
   - optimizers: Adam / AdamW;
-  - LR schedulers: none / cosine / plateau;
+  - LR schedulers: none / cosine / plateau / exponential (per-epoch decay,
+    0.9 as in AI4EPS PhaseNet);
   - HPO samplers, pruners and search-space parameters (float / int /
     categorical).
 
@@ -151,6 +152,17 @@ Fixed decisions:
 - **FR-M5a:** Fine-tuning keeps the pretrained model's component order and
   sampling rate. If the data config differs, raise an error; never feed
   swapped channels to pretrained weights.
+- **FR-M6 Loss:** `model.loss` is a discriminated union (FR-C7) in
+  `models/loss.py`; the adapter builds it for its model and computes it on
+  the logits. PhaseNet has `cross_entropy`, soft-target cross-entropy over
+  the softmax channels. The defaults reproduce SeisBench's pick-benchmark
+  `vector_cross_entropy` (`log(softmax + eps)`). Options: `from_logits`
+  (`log_softmax`, as the original PhaseNet), `weights` per output channel
+  by label (PhaseNet's `class_weights`, applied per channel inside the sum),
+  and `pick_mask_s` (`false` turns it off): in windows with picks, only samples within this
+  distance of a pick enter the loss, which removes most of the noise
+  samples; windows without picks are never masked. The mask must cover
+  3 label sigmas. Training batches carry `pick_samples` for it.
 
 ### 3.4 Training
 

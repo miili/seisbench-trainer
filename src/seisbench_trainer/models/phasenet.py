@@ -2,18 +2,20 @@
 
 from typing import TYPE_CHECKING, Literal
 
+from pydantic import Field
+
 from seisbench_trainer.data.phases import PHASE_COLUMNS, Augmentation
 from seisbench_trainer.models.base import LabelShape, PickerModelConfig
+from seisbench_trainer.models.loss import CrossEntropyLoss, LossFunction, PhaseNetLoss
 
 if TYPE_CHECKING:
     import seisbench.models as sbm
     from torch import Tensor
 
-    from seisbench_trainer.data.loaders import Batch
-
 
 class PhaseNetConfig(PickerModelConfig):
     type: Literal["PhaseNet"] = "PhaseNet"
+    loss: PhaseNetLoss = Field(default_factory=CrossEntropyLoss)
 
     def build(self, component_order: str, sampling_rate: float) -> "sbm.PhaseNet":
         import seisbench.models as sbm
@@ -63,13 +65,14 @@ class PhaseNetConfig(PickerModelConfig):
             )
         ]
 
-    def forward(self, model: "sbm.WaveformModel", x: "Tensor") -> "Tensor":
-        prediction: Tensor = model(model.annotate_batch_pre(x, {}))
-        return prediction
+    def forward_logits(self, model: "sbm.WaveformModel", x: "Tensor") -> "Tensor":
+        logits: Tensor = model(model.annotate_batch_pre(x, {}), logits=True)
+        return logits
 
-    def loss(self, pred: "Tensor", batch: "Batch", eps: float = 1e-5) -> "Tensor":
-        """Cross-entropy between target and predicted curves (reference loss)."""
-        import torch
+    def activate(self, logits: "Tensor") -> "Tensor":
+        return logits.softmax(dim=1)
 
-        cross_entropy = batch["y"] * torch.log(pred + eps)
-        return -cross_entropy.mean(dim=-1).sum(dim=-1).mean()
+    def build_loss(
+        self, model: "sbm.WaveformModel", sampling_rate: float
+    ) -> LossFunction:
+        return self.loss.build(model.labels, sampling_rate)

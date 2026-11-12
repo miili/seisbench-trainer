@@ -12,13 +12,12 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import Field
 
 from seisbench_trainer.data.phases import PHASES, Augmentation
+from seisbench_trainer.models.loss import LossFunction
 from seisbench_trainer.schema import StrictModel
 
 if TYPE_CHECKING:
     import seisbench.models as sbm
     from torch import Tensor
-
-    from seisbench_trainer.data.loaders import Batch
 
 LabelShape = Literal["gaussian", "triangle", "box"]
 
@@ -60,12 +59,22 @@ class PickerModelConfig(StrictModel, ABC):
         """Augmentations that write the training target ``y``."""
 
     @abstractmethod
-    def forward(self, model: "sbm.WaveformModel", x: "Tensor") -> "Tensor":
-        """Model output as probabilities, shape (batch, channel, sample)."""
+    def forward_logits(self, model: "sbm.WaveformModel", x: "Tensor") -> "Tensor":
+        """Raw model output before the final activation; the loss input."""
 
     @abstractmethod
-    def loss(self, pred: "Tensor", batch: "Batch") -> "Tensor":
-        """Training loss of a ``forward`` output against the batch target."""
+    def activate(self, logits: "Tensor") -> "Tensor":
+        """Probabilities from ``forward_logits``, shape (batch, channel, sample)."""
+
+    def forward(self, model: "sbm.WaveformModel", x: "Tensor") -> "Tensor":
+        """Model output as probabilities, shape (batch, channel, sample)."""
+        return self.activate(self.forward_logits(model, x))
+
+    @abstractmethod
+    def build_loss(
+        self, model: "sbm.WaveformModel", sampling_rate: float
+    ) -> LossFunction:
+        """The configured training loss on ``forward_logits`` and the batch."""
 
     def phase_probabilities(
         self, model: "sbm.WaveformModel", pred: "Tensor"

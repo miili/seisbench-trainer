@@ -73,5 +73,28 @@ class PlateauConfig(StrictModel):
         return {"scheduler": scheduler, "monitor": monitor, "interval": "epoch"}
 
 
+class ExponentialConfig(StrictModel):
+    """Multiply the learning rate by ``decay`` after every epoch.
+
+    AI4EPS PhaseNet decays Adam's rate (0.01) by 0.9 per epoch (staircase
+    ``exponential_decay`` with one epoch of steps).
+    """
+
+    type: Literal["exponential"] = "exponential"
+    decay: float = Field(
+        default=0.9, gt=0.0, le=1.0, description="Learning-rate factor per epoch."
+    )
+
+    def build(
+        self, optimizer: "Optimizer", epochs: int, monitor: str, mode: Mode
+    ) -> "LRSchedulerConfigType":
+        from torch.optim.lr_scheduler import ExponentialLR
+
+        scheduler = ExponentialLR(optimizer, gamma=self.decay)
+        return {"scheduler": scheduler, "interval": "epoch"}
+
+
 OptimizerConfig = Annotated[AdamConfig | AdamWConfig, Field(discriminator="type")]
-SchedulerConfig = Annotated[CosineConfig | PlateauConfig, Field(discriminator="type")]
+SchedulerConfig = Annotated[
+    CosineConfig | PlateauConfig | ExponentialConfig, Field(discriminator="type")
+]

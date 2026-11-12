@@ -7,7 +7,7 @@ import seisbench.generate as sbg
 import seisbench.models as sbm
 import torch
 from torch.optim import Adam, AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
+from torch.optim.lr_scheduler import CosineAnnealingLR, ExponentialLR, ReduceLROnPlateau
 
 from seisbench_trainer.config import TrainConfig
 from seisbench_trainer.data import AugmentationConfig, DataConfig, LocalDataset
@@ -19,6 +19,7 @@ from seisbench_trainer.training.optim import (
     AdamConfig,
     AdamWConfig,
     CosineConfig,
+    ExponentialConfig,
     PlateauConfig,
 )
 
@@ -85,16 +86,27 @@ def test_forward_returns_probabilities() -> None:
     torch.testing.assert_close(pred.sum(dim=1), torch.ones(2, 3001))
 
 
+def test_forward_is_activated_logits() -> None:
+    config = PhaseNetConfig()
+    model = config.build("ZNE", SAMPLING_RATE)
+    model.eval()
+    x = torch.randn(2, 3, 3001)
+    with torch.no_grad():
+        logits = config.forward_logits(model, x)
+        torch.testing.assert_close(config.activate(logits), config.forward(model, x))
+        assert not torch.allclose(logits.sum(dim=1), torch.ones(2, 3001))
+
+
 def test_loss_prefers_the_target() -> None:
     target = torch.zeros(1, 3, 100)
     target[0, 2] = 1.0
     target[0, 0, 40:60] = torch.linspace(0, 1, 20)
     target[0, 2] -= target[0, 0]
     batch: Batch = {"y": target}
-    config = PhaseNetConfig()
-    uniform = torch.full_like(target, 1 / 3)
-    assert config.loss(target, batch) < config.loss(uniform, batch)
-    assert config.loss(target, batch) >= 0
+    loss = PhaseNetConfig().loss.build("PSN", SAMPLING_RATE)
+    matching = torch.log(target + 1e-9)  # softmax of these logits is the target
+    assert loss(matching, batch) < loss(torch.zeros_like(target), batch)
+    assert loss(matching, batch) >= 0
 
 
 def test_phase_probabilities_follow_labels() -> None:
@@ -164,10 +176,11 @@ def test_configure_optimizers(
     [
         (CosineConfig(), CosineAnnealingLR, None),
         (PlateauConfig(), ReduceLROnPlateau, "val_loss"),
+        (ExponentialConfig(), ExponentialLR, None),
     ],
 )
 def test_scheduler_build(
-    scheduler: CosineConfig | PlateauConfig,
+    scheduler: CosineConfig | PlateauConfig | ExponentialConfig,
     expected: type[object],
     monitor: str | None,
 ) -> None:
@@ -175,6 +188,15 @@ def test_scheduler_build(
     built = scheduler.build(optimizer, epochs=10, monitor="val_loss", mode="min")
     assert isinstance(built["scheduler"], expected)
     assert built.get("monitor") == monitor
+
+
+def test_exponential_decay_per_epoch() -> None:
+    optimizer = Adam([torch.nn.Parameter(torch.zeros(1))], lr=0.01)
+    built = ExponentialConfig(decay=0.9).build(optimizer, 10, "val_loss", "min")
+    for _ in range(2):
+        optimizer.step()
+        built["scheduler"].step()
+    assert optimizer.param_groups[0]["lr"] == pytest.approx(0.01 * 0.9**2)
 
 
 def test_training_step_backpropagates(synthetic_path: Path) -> None:
@@ -186,7 +208,7 @@ def test_training_step_backpropagates(synthetic_path: Path) -> None:
         *config.model.label_augmentations(module.model, 10, "gaussian"),
     ]
     batch = next(iter(make_loader(splits.train, augmentations, config.data, False)))
-    loss = config.model.loss(module(batch["X"]), batch)
+    loss = module.loss(config.model.forward_logits(module.model, batch["X"]), batch)
     loss.backward()
     gradients = [p.grad for p in module.parameters() if p.requires_grad]
     assert all(g is not None for g in gradients)

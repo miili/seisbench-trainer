@@ -100,6 +100,19 @@ class TrainConfig(StrictModel):
     )
 
     @model_validator(mode="after")
+    def _mask_covers_labels(self) -> Self:
+        mask_s = self.model.loss.pick_mask_s
+        sigma_s = self.augmentation.label_sigma_s
+        # tolerance: 3 * 0.1 is slightly above 0.3
+        if mask_s is not False and mask_s < 3 * sigma_s - 1e-9:
+            raise ValueError(
+                f"model.loss.pick_mask_s ({mask_s} s) must be at least 3 label "
+                f"sigmas (3 * augmentation.label_sigma_s = {3 * sigma_s:g} s), "
+                "or it cuts off the label curves"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _check_search_space(self) -> Self:
         if self.hpo is not None:
             try:

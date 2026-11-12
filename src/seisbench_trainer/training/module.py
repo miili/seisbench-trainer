@@ -18,6 +18,7 @@ class PickerModule(pl.LightningModule):
         self.model = config.model.build(
             config.data.component_order, config.data.sampling_rate
         )
+        self.loss = config.model.build_loss(self.model, config.data.sampling_rate)
 
     @property
     def window_samples(self) -> int:
@@ -31,15 +32,16 @@ class PickerModule(pl.LightningModule):
         return self.config.model.forward(self.model, x)
 
     def training_step(self, batch: Batch, batch_idx: int) -> Tensor:
-        loss = self.config.model.loss(self(batch["X"]), batch)
+        logits = self.config.model.forward_logits(self.model, batch["X"])
+        loss = self.loss(logits, batch)
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch: Batch, batch_idx: int) -> dict[str, Tensor]:
-        pred = self(batch["X"])
-        loss = self.config.model.loss(pred, batch)
+        logits = self.config.model.forward_logits(self.model, batch["X"])
+        loss = self.loss(logits, batch)
         self.log("val_loss", loss, prog_bar=True)
-        return {"loss": loss, "pred": pred}
+        return {"loss": loss, "pred": self.config.model.activate(logits)}
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         training = self.config.training

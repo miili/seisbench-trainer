@@ -15,6 +15,7 @@ from seisbench_trainer.training.optim import (
     AdamConfig,
     AdamWConfig,
     CosineConfig,
+    ExponentialConfig,
     PlateauConfig,
 )
 from seisbench_trainer.units import seconds_to_samples
@@ -45,6 +46,7 @@ def test_default_round_trip(tmp_path: Path) -> None:
         ("optimizer", "adamw", AdamWConfig),
         ("scheduler", "cosine", CosineConfig),
         ("scheduler", "plateau", PlateauConfig),
+        ("scheduler", "exponential", ExponentialConfig),
     ],
 )
 def test_optim_union_members_parse(key: str, tag: str, expected: type[object]) -> None:
@@ -96,6 +98,33 @@ def test_preprocessing_steps_parse() -> None:
     assert isinstance(filter_, Filter)
     assert filter_.splits == ["train", "dev", "test"]
     assert TrainConfig().data.datasets[0].preprocessing == []
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"), [(False, False), (None, False), (0.5, 0.5)]
+)
+def test_pick_mask_switch(value: object, expected: object) -> None:
+    raw = {"type": "PhaseNet", "loss": {"type": "cross_entropy", "pick_mask_s": value}}
+    assert TrainConfig.model_validate({"model": raw}).model.loss.pick_mask_s == expected
+
+
+def test_pick_mask_rejects_true() -> None:
+    raw = {"type": "PhaseNet", "loss": {"type": "cross_entropy", "pick_mask_s": True}}
+    with pytest.raises(ValidationError, match="distance in seconds or false"):
+        TrainConfig.model_validate({"model": raw})
+
+
+def test_pick_mask_covers_label_sigma() -> None:
+    raw = {
+        "model": {
+            "type": "PhaseNet",
+            "loss": {"type": "cross_entropy", "pick_mask_s": 0.3},
+        }
+    }
+    assert TrainConfig.model_validate(raw).model.loss.pick_mask_s == 0.3
+    narrow = raw | {"augmentation": {"label_sigma_s": 0.2}}
+    with pytest.raises(ValidationError, match="3 label sigmas"):
+        TrainConfig.model_validate(narrow)
 
 
 def test_scheduler_defaults_to_none() -> None:
@@ -160,6 +189,28 @@ def test_scheduler_defaults_to_none() -> None:
             "value_error",
         ),
         (dataset_steps({"type": "shuffle"}), "union_tag_invalid"),
+        (
+            {"model": {"type": "PhaseNet", "loss": {"type": "dice"}}},
+            "union_tag_invalid",
+        ),
+        (
+            {
+                "model": {
+                    "type": "PhaseNet",
+                    "loss": {"type": "cross_entropy", "weights": {"P": -1.0}},
+                }
+            },
+            "greater_than_equal",
+        ),
+        (
+            {
+                "model": {
+                    "type": "PhaseNet",
+                    "loss": {"type": "cross_entropy", "pick_mask_s": 0.2},
+                }
+            },
+            "value_error",
+        ),
     ],
 )
 def test_invalid_configs_rejected(raw: dict[str, Any], expected: str) -> None:

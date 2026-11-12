@@ -44,12 +44,13 @@ src/seisbench_trainer/
     loaders.py           split, concatenate, preload, DataLoaders
   models/
     __init__.py          ModelConfig = Annotated[PhaseNetConfig | ..., Field(discriminator="type")]
-    base.py              PickerModelConfig (ABC): build, label_augmentations, forward, loss, phase_probabilities
+    base.py              PickerModelConfig (ABC): build, label_augmentations, forward_logits, activate, build_loss, phase_probabilities
+    loss.py              loss configs (cross_entropy); each builds a LossFunction on logits and the batch
     phasenet.py          PhaseNetConfig
     eqtransformer.py     EQTransformerConfig (step 10)
   training/
     __init__.py
-    optim.py             OptimizerConfig union (Adam | AdamW) and SchedulerConfig union (None | Cosine | Plateau)
+    optim.py             OptimizerConfig union (Adam | AdamW) and SchedulerConfig union (None | Cosine | Plateau | Exponential)
     module.py            PickerModule (LightningModule); uses ModelConfig, nothing model-specific
     train.py             train(config) -> run_id
   metrics/
