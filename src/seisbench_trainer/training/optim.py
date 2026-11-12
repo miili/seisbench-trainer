@@ -78,7 +78,11 @@ class PlateauConfig(StrictModel):
 
     type: Literal["plateau"] = "plateau"
     factor: float = Field(default=0.5, gt=0.0, lt=1.0)
-    patience: NonNegativeInt = 5
+    patience: NonNegativeInt = Field(
+        default=3,
+        description="Epochs without improvement before the rate drops. 3 against "
+        "early stopping's 10 leaves several drops before a run ends.",
+    )
 
     def build(
         self,

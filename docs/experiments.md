@@ -56,15 +56,38 @@ What we learned:
   ended at 0.843, below the 40-epoch cosine run (0.846): the decaying
   rate matters more than the length. One epoch is about 200k windows
   (198 steps of 1024), so other datasets need other epoch counts.
-  Default since then: plateau scheduler (factor 0.5, patience 5) and
-  early stopping (patience 10, `min_delta` 0.002), at most 100 epochs.
+  The default was then made adaptive (see the next section).
 - `val_loss` is not comparable between runs whose loss differs (weights,
   mask), so compare and select by `det/f1_mean`, now the default
   `training.monitor`.
 
-Open: confirm N 0.5 against N 1 with several seeds and when fine-tuning;
-check the plateau + early-stopping default against the 40-epoch cosine
-runs on BohemiaSaxony.
+Open: confirm N 0.5 against N 1 with several seeds and when fine-tuning.
+
+## 2026-11-12: run length without a fixed epoch count
+
+Same experiment, code `d09411a`, the new defaults otherwise (N 0.5,
+`log_softmax`), at most 100 epochs, `min_delta` 0.002 for both the plateau
+scheduler (factor 0.5) and early stopping. Best-epoch scores:
+
+| run | epochs run | det/f1_mean | pick MAE P / S | LR drops at epoch | time |
+| --- | --- | --- | --- | --- | --- |
+| scratch, plateau 3, stop 10 | 39 | 0.844 | 0.060 / 0.062 s | 20, 25, 29, 34, 38 | 25 min |
+| scratch, plateau 5, stop 15 | 62 | 0.846 | 0.058 / 0.060 s | 33, 40, 47, 54, 60 | 39 min |
+| scratch, plateau 5, stop 10 | 34 | 0.842 | 0.063 / 0.063 s | 24, 31 | 24 min |
+| scratch, cosine 40 epochs (round 2) | 40 | 0.845 | 0.062 / 0.063 s | - | 27 min |
+| fine-tune, plateau 5, stop 10 | 42 | 0.847 | 0.060 / 0.060 s | 29, 39 | 28 min |
+| fine-tune, cosine 40 epochs (round 1) | 40 | 0.846 | 0.061 / 0.061 s | - | 27 min |
+
+- Plateau 5 with stop 10 ends a scratch run too early: both count the same
+  flat epochs, so the run stopped 3 epochs after the second rate drop
+  (rate still 0.00075). Fine-tuning, which starts closer to the optimum,
+  was not affected.
+- Plateau 3 with stop 10 matches cosine without an epoch count: five
+  halvings, then the stop. Stop 15 was best on every metric, but within
+  the noise of plateau 3, at 1.6 times the time.
+- Default: plateau patience 3, early stopping 10, `min_delta` 0.002,
+  `epochs` 100 as the limit. For the last bit of accuracy on a final
+  model, `early_stopping_patience: 15` is worth trying.
 
 ## Reference recipes
 

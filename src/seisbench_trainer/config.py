@@ -36,7 +36,7 @@ scores are maximized."""
 
 class TrainingConfig(StrictModel):
     """Training loop. By default every run finds its own length: the plateau
-    scheduler halves the learning rate after 5 epochs without improvement and
+    scheduler halves the learning rate after 3 epochs without improvement and
     early stopping ends the run after 10; ``epochs`` is only the limit."""
 
     epochs: PositiveInt = Field(

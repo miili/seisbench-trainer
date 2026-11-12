@@ -190,7 +190,7 @@ Fixed decisions:
 - **FR-T2:** Lightning callbacks: `ModelCheckpoint` on the selection metric
   (one mechanism only), optional `EarlyStopping`, and LR monitoring.
 - **FR-T2a Run length:** by default a run finds its own length: torch's
-  `ReduceLROnPlateau` halves the rate after 5 epochs and Lightning's
+  `ReduceLROnPlateau` halves the rate after 3 epochs and Lightning's
   `EarlyStopping` ends the run after 10 epochs without an improvement of
   `training.min_delta` (0.002, the run-to-run noise of `det/f1_mean`);
   `training.epochs` (100) is only the limit. A fixed-length schedule
