@@ -160,13 +160,11 @@ def test_configure_optimizers(
     optimizer: AdamConfig | AdamWConfig,
     expected: type[torch.optim.Optimizer],
 ) -> None:
-    config = config_for(synthetic_path, optimizer=optimizer.model_dump())
-    assert isinstance(PickerModule(config).configure_optimizers(), expected)
     config = config_for(
-        synthetic_path,
-        optimizer=optimizer.model_dump(),
-        scheduler=CosineConfig().model_dump(),
+        synthetic_path, optimizer=optimizer.model_dump(), scheduler=None
     )
+    assert isinstance(PickerModule(config).configure_optimizers(), expected)
+    config = config_for(synthetic_path, optimizer=optimizer.model_dump())
     result = PickerModule(config).configure_optimizers()
     assert isinstance(result, dict)
     assert isinstance(result["optimizer"], expected)
@@ -190,6 +188,17 @@ def test_scheduler_build(
     built = scheduler.build(optimizer, epochs=10, monitor="val_loss", mode="min")
     assert isinstance(built["scheduler"], expected)
     assert built.get("monitor") == monitor
+
+
+def test_plateau_counts_only_changes_above_min_delta() -> None:
+    optimizer = Adam([torch.nn.Parameter(torch.zeros(1))], lr=0.01)
+    config = PlateauConfig(patience=1)
+    scheduler = config.build(optimizer, 10, "det/f1_mean", "max", min_delta=0.002)
+    plateau = scheduler["scheduler"]
+    assert isinstance(plateau, ReduceLROnPlateau)
+    for f1 in (0.80, 0.801, 0.8015):  # gains below min_delta: no improvement
+        plateau.step(f1)
+    assert optimizer.param_groups[0]["lr"] == pytest.approx(0.005)
 
 
 def test_exponential_decay_per_epoch() -> None:
@@ -218,7 +227,9 @@ def test_training_step_backpropagates(synthetic_path: Path) -> None:
 
 
 def test_lightning_fit_one_batch(synthetic_path: Path) -> None:
-    config = config_for(synthetic_path)
+    # a bare Trainer logs no det/f1_mean (that is EvaluationCallback's job),
+    # so the plateau default has nothing to watch
+    config = config_for(synthetic_path, scheduler=None)
     module = PickerModule(config)
     splits = load_splits(config.data)
     labels = config.model.label_augmentations(module.model, 10, "gaussian")

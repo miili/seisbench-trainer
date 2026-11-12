@@ -55,5 +55,6 @@ class PickerModule(pl.LightningModule):
             epochs=training.epochs,
             monitor=training.monitor,
             mode=training.monitor_mode,
+            min_delta=training.min_delta,
         )
         return {"optimizer": optimizer, "lr_scheduler": scheduler}

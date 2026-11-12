@@ -189,6 +189,12 @@ Fixed decisions:
   The optimizer and an optional LR scheduler come from the config.
 - **FR-T2:** Lightning callbacks: `ModelCheckpoint` on the selection metric
   (one mechanism only), optional `EarlyStopping`, and LR monitoring.
+- **FR-T2a Run length:** by default a run finds its own length: torch's
+  `ReduceLROnPlateau` halves the rate after 5 epochs and Lightning's
+  `EarlyStopping` ends the run after 10 epochs without an improvement of
+  `training.min_delta` (0.002, the run-to-run noise of `det/f1_mean`);
+  `training.epochs` (100) is only the limit. A fixed-length schedule
+  (cosine) needs early stopping off, which the config enforces.
 - **FR-T3:** The accelerator, devices and precision come from the config.
   The default is `auto`, so the same config runs on CPU and GPU.
 - **FR-T4:** Set the seed for everything (`seed_everything(workers=True)`)

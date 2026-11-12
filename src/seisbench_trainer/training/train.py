@@ -56,6 +56,7 @@ def _callbacks(
                 monitor=training.monitor,
                 mode=training.monitor_mode,
                 patience=training.early_stopping_patience,
+                min_delta=training.min_delta,
             )
         )
     return callbacks

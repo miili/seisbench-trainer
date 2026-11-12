@@ -47,15 +47,24 @@ What we learned:
   model never learns that P and S coda are not picks, because almost every
   training window contains a pick and the coda beyond the mask is hidden.
   Pick timing was not better than with N 0.5. The feature was removed.
-- **Training length**: the best unmasked runs were still improving at
-  epoch 40; longer training is likely to help.
+- **Training length**: improvements fell below the noise (0.002) after
+  about 30 epochs, under cosine (40 epochs, gain in the last 10 epochs
+  +0.001) and constant LR alike. Two 100-epoch fine-tuning runs with a
+  constant rate of 0.01 (experiment `BohemiaSaxony/PhaseNet`, 2026-11-08)
+  were within 0.005 of their best by epoch 18-21 and within 0.002 by
+  epoch 31-45; after that F1 only drifted between 0.836 and 0.842. They
+  ended at 0.843, below the 40-epoch cosine run (0.846): the decaying
+  rate matters more than the length. One epoch is about 200k windows
+  (198 steps of 1024), so other datasets need other epoch counts.
+  Default since then: plateau scheduler (factor 0.5, patience 5) and
+  early stopping (patience 10, `min_delta` 0.002), at most 100 epochs.
 - `val_loss` is not comparable between runs whose loss differs (weights,
   mask), so compare and select by `det/f1_mean`, now the default
   `training.monitor`.
 
 Open: confirm N 0.5 against N 1 with several seeds and when fine-tuning;
-compare the LR schedules (cosine, plateau, exponential) with the loss
-fixed; train longer than 40 epochs.
+check the plateau + early-stopping default against the 40-epoch cosine
+runs on BohemiaSaxony.
 
 ## Reference recipes
 

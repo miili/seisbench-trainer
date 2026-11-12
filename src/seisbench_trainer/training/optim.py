@@ -43,13 +43,23 @@ class AdamWConfig(StrictModel):
 
 
 class CosineConfig(StrictModel):
-    """Cosine annealing over all training epochs."""
+    """Cosine annealing over all training epochs.
+
+    Needs a fixed length: disable early stopping (it would end the run while
+    the rate is still high) and set ``training.epochs`` to the length found
+    with the plateau default.
+    """
 
     type: Literal["cosine"] = "cosine"
     eta_min: NonNegativeFloat = 0.0
 
     def build(
-        self, optimizer: Optimizer, epochs: int, monitor: str, mode: Mode
+        self,
+        optimizer: Optimizer,
+        epochs: int,
+        monitor: str,
+        mode: Mode,
+        min_delta: float = 0.0,
     ) -> LRSchedulerConfigType:
         from torch.optim.lr_scheduler import CosineAnnealingLR
 
@@ -58,19 +68,35 @@ class CosineConfig(StrictModel):
 
 
 class PlateauConfig(StrictModel):
-    """Reduce the learning rate when the selection metric stops improving."""
+    """Reduce the learning rate when ``training.monitor`` stops improving.
+
+    An epoch counts as an improvement only if it beats the best value by
+    ``training.min_delta``, as for early stopping. With early stopping, set
+    ``patience`` below the early-stopping patience, so the rate drops before
+    the run ends.
+    """
 
     type: Literal["plateau"] = "plateau"
     factor: float = Field(default=0.5, gt=0.0, lt=1.0)
     patience: NonNegativeInt = 5
 
     def build(
-        self, optimizer: Optimizer, epochs: int, monitor: str, mode: Mode
+        self,
+        optimizer: Optimizer,
+        epochs: int,
+        monitor: str,
+        mode: Mode,
+        min_delta: float = 0.0,
     ) -> LRSchedulerConfigType:
         from torch.optim.lr_scheduler import ReduceLROnPlateau
 
         scheduler = ReduceLROnPlateau(
-            optimizer, mode=mode, factor=self.factor, patience=self.patience
+            optimizer,
+            mode=mode,
+            factor=self.factor,
+            patience=self.patience,
+            threshold=min_delta,
+            threshold_mode="abs",
         )
         return {"scheduler": scheduler, "monitor": monitor, "interval": "epoch"}
 
@@ -88,7 +114,12 @@ class ExponentialConfig(StrictModel):
     )
 
     def build(
-        self, optimizer: Optimizer, epochs: int, monitor: str, mode: Mode
+        self,
+        optimizer: Optimizer,
+        epochs: int,
+        monitor: str,
+        mode: Mode,
+        min_delta: float = 0.0,
     ) -> LRSchedulerConfigType:
         from torch.optim.lr_scheduler import ExponentialLR
 

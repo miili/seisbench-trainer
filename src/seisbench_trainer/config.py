@@ -22,8 +22,10 @@ from seisbench_trainer.models import ModelConfig, PhaseNetConfig
 from seisbench_trainer.schema import StrictModel
 from seisbench_trainer.training.optim import (
     AdamConfig,
+    CosineConfig,
     Mode,
     OptimizerConfig,
+    PlateauConfig,
     SchedulerConfig,
 )
 
@@ -33,7 +35,14 @@ scores are maximized."""
 
 
 class TrainingConfig(StrictModel):
-    epochs: PositiveInt = 50
+    """Training loop. By default every run finds its own length: the plateau
+    scheduler halves the learning rate after 5 epochs without improvement and
+    early stopping ends the run after 10; ``epochs`` is only the limit."""
+
+    epochs: PositiveInt = Field(
+        default=100,
+        description="Upper limit; early stopping usually ends the run sooner.",
+    )
     seed: int = 42
     accelerator: Literal["auto", "cpu", "gpu"] = "auto"
     precision: Literal["32-true", "16-mixed", "bf16-mixed"] = "32-true"
@@ -44,15 +53,38 @@ class TrainingConfig(StrictModel):
         "is minimized, the F1 scores are maximized.",
     )
     early_stopping_patience: PositiveInt | None = Field(
-        default=None, description="Epochs without improvement. None disables it."
+        default=10,
+        description="Stop after this many epochs without improvement. None "
+        "disables it (needed for the cosine scheduler).",
+    )
+    min_delta: NonNegativeFloat = Field(
+        default=0.002,
+        description="Smallest change of monitor that counts as an improvement, "
+        "for early stopping and the plateau scheduler. 0.002 is the run-to-run "
+        "noise of det/f1_mean on BohemiaSaxony; use about 0.0005 for val_loss.",
     )
     optimizer: OptimizerConfig = Field(default_factory=AdamConfig)
-    scheduler: SchedulerConfig | None = None
+    scheduler: SchedulerConfig | None = Field(
+        default_factory=PlateauConfig,
+        description="Learning-rate schedule. None keeps the rate constant.",
+    )
     checkpoint_dir: Path = Field(
         default=Path("checkpoints"),
         description="Local or scratch directory for Lightning checkpoints. "
         "They are not uploaded to MLflow.",
     )
+
+    @model_validator(mode="after")
+    def _cosine_runs_to_the_end(self) -> Self:
+        if (
+            isinstance(self.scheduler, CosineConfig)
+            and self.early_stopping_patience is not None
+        ):
+            raise ValueError(
+                "the cosine scheduler needs a fixed length: set "
+                "training.early_stopping_patience to null"
+            )
+        return self
 
     @property
     def monitor_mode(self) -> Mode:

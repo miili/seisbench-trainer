@@ -154,3 +154,21 @@ def test_train_with_baseline_and_detection_selection(
     assert len(client.get_metric_history(run_id, "baseline/det_P/f1")) == 1
     assert len(client.get_metric_history(run_id, "det_P/f1")) == 2
     assert not list_artifacts(run_id=run_id, artifact_path="evaluation")
+
+
+def test_early_stopping_uses_min_delta() -> None:
+    from typing import Any
+
+    from lightning.pytorch.callbacks import EarlyStopping
+
+    placeholder: Any = object()  # evaluation and checkpoint are passed through
+    callbacks = train_module._callbacks(TrainConfig(), placeholder, placeholder)
+    (stopping,) = [c for c in callbacks if isinstance(c, EarlyStopping)]
+    assert stopping.monitor == "det/f1_mean"
+    assert stopping.patience == 10
+    assert abs(stopping.min_delta) == 0.002
+    no_stop = TrainConfig.model_validate(
+        {"training": {"early_stopping_patience": None}}
+    )
+    callbacks = train_module._callbacks(no_stop, placeholder, placeholder)
+    assert not any(isinstance(c, EarlyStopping) for c in callbacks)

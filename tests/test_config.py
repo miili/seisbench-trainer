@@ -52,7 +52,8 @@ def test_default_round_trip(tmp_path: Path) -> None:
     ],
 )
 def test_optim_union_members_parse(key: str, tag: str, expected: type[object]) -> None:
-    config = TrainConfig.model_validate({"training": {key: {"type": tag}}})
+    training = {key: {"type": tag}, "early_stopping_patience": None}
+    config = TrainConfig.model_validate({"training": training})
     assert isinstance(getattr(config.training, key), expected)
 
 
@@ -122,8 +123,21 @@ def test_loss_defaults() -> None:
     assert loss.weights == {"N": 0.5}
 
 
-def test_scheduler_defaults_to_none() -> None:
-    assert TrainConfig().training.scheduler is None
+def test_defaults_find_the_run_length() -> None:
+    training = TrainConfig().training
+    assert training.scheduler == PlateauConfig()
+    assert training.early_stopping_patience == 10
+    assert training.scheduler.patience < training.early_stopping_patience
+    assert training.min_delta == 0.002
+    assert training.epochs == 100
+
+
+def test_cosine_needs_a_fixed_length() -> None:
+    cosine = {"scheduler": {"type": "cosine"}}
+    with pytest.raises(ValidationError, match="early_stopping_patience to null"):
+        TrainConfig.model_validate({"training": cosine})
+    fixed = cosine | {"early_stopping_patience": None}
+    assert TrainConfig.model_validate({"training": fixed}).training.scheduler
 
 
 @pytest.mark.parametrize(
