@@ -1,7 +1,8 @@
 """Dataset sources. Each source is one member of the ``DatasetConfig`` union.
 
 Every source loads a ``seisbench`` dataset with the run's component order and
-sampling rate and applies its optional metadata query.
+sampling rate, applies its optional metadata query and then its preprocessing
+steps (``data.preprocessing``).
 """
 
 import hashlib
@@ -11,11 +12,9 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal
 
-import numpy as np
-import pandas as pd
-from numpy.typing import NDArray
 from pydantic import Field, NonNegativeInt, PositiveFloat, PositiveInt
 
+from seisbench_trainer.data.preprocessing import PreprocessingStep, query_mask
 from seisbench_trainer.schema import StrictModel
 
 # seisbench imports torch, which takes seconds. It is imported only when a
@@ -24,19 +23,25 @@ if TYPE_CHECKING:
     import seisbench.data as sbd
 
 
-def query_mask(metadata: pd.DataFrame, query: str) -> NDArray[np.bool_]:
-    """Rows of ``metadata`` that match a pandas query."""
-    mask = metadata.eval(query)
-    if not (isinstance(mask, pd.Series) and mask.dtype == bool):
-        raise ValueError(f"query {query!r} does not give a boolean mask")
-    return mask.to_numpy(dtype=bool)
+Preprocessing = Annotated[
+    list[PreprocessingStep],
+    Field(
+        default_factory=list[PreprocessingStep],
+        description="Steps applied in order after the query and before the "
+        "dataset is split: filter, resplit.",
+    ),
+]
 
 
-def _apply_query(
-    dataset: "sbd.WaveformDataset", query: str | None
+def _prepare(
+    dataset: "sbd.WaveformDataset",
+    query: str | None,
+    preprocessing: list[PreprocessingStep],
 ) -> "sbd.WaveformDataset":
     if query is not None:
         dataset.filter(query_mask(dataset.metadata, query), inplace=True)
+    for step in preprocessing:
+        step.apply(dataset)
     return dataset
 
 
@@ -50,6 +55,7 @@ class SeisBenchDataset(StrictModel):
         description="Optional pandas query on the metadata to select traces, "
         'e.g. "source_magnitude > 1".',
     )
+    preprocessing: Preprocessing
 
     def label(self) -> str:
         """Short name for experiment and model names."""
@@ -67,7 +73,7 @@ class SeisBenchDataset(StrictModel):
         dataset = dataset_class(
             component_order=component_order, sampling_rate=sampling_rate, cache="full"
         )
-        return _apply_query(dataset, self.query)
+        return _prepare(dataset, self.query, self.preprocessing)
 
 
 class LocalDataset(StrictModel):
@@ -79,6 +85,7 @@ class LocalDataset(StrictModel):
         default=None,
         description="Optional pandas query on the metadata to select traces.",
     )
+    preprocessing: Preprocessing
 
     def label(self) -> str:
         """Short name for experiment and model names."""
@@ -93,7 +100,7 @@ class LocalDataset(StrictModel):
             sampling_rate=sampling_rate,
             cache="full",
         )
-        return _apply_query(dataset, self.query)
+        return _prepare(dataset, self.query, self.preprocessing)
 
 
 class SyntheticDataset(StrictModel):
@@ -106,6 +113,7 @@ class SyntheticDataset(StrictModel):
     noise_fraction: float = Field(default=0.1, ge=0.0, lt=1.0)
     seed: NonNegativeInt = 0
     query: str | None = None
+    preprocessing: Preprocessing
 
     def label(self) -> str:
         """Short name for experiment and model names."""
@@ -113,7 +121,7 @@ class SyntheticDataset(StrictModel):
 
     def path(self) -> Path:
         """Cache directory, unique for the generation parameters."""
-        params = self.model_dump_json(exclude={"query"}).encode()
+        params = self.model_dump_json(exclude={"query", "preprocessing"}).encode()
         digest = hashlib.sha256(params).hexdigest()[:12]
         return Path(tempfile.gettempdir()) / "seisbench-trainer" / f"synthetic-{digest}"
 
@@ -139,7 +147,11 @@ class SyntheticDataset(StrictModel):
         return path
 
     def load(self, component_order: str, sampling_rate: float) -> "sbd.WaveformDataset":
-        local = LocalDataset(path=self.ensure_written(), query=self.query)
+        local = LocalDataset(
+            path=self.ensure_written(),
+            query=self.query,
+            preprocessing=self.preprocessing,
+        )
         return local.load(component_order, sampling_rate)
 
 

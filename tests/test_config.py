@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 from seisbench_trainer.cli import app
 from seisbench_trainer.config import TrainConfig, dump_config, load_config
 from seisbench_trainer.data import LocalDataset, SeisBenchDataset
+from seisbench_trainer.data.preprocessing import Filter, Resplit
 from seisbench_trainer.models import PhaseNetConfig
 from seisbench_trainer.training.optim import (
     AdamConfig,
@@ -76,6 +77,27 @@ def test_combined_datasets() -> None:
     assert [type(d) for d in config.data.datasets] == [SeisBenchDataset, LocalDataset]
 
 
+def dataset_steps(*steps: dict[str, Any]) -> dict[str, Any]:
+    """A config whose one dataset has the given preprocessing steps."""
+    dataset = {"type": "seisbench", "name": "ETHZ", "preprocessing": list(steps)}
+    return {"data": {"datasets": [dataset]}}
+
+
+def test_preprocessing_steps_parse() -> None:
+    config = TrainConfig.model_validate(
+        dataset_steps(
+            {"type": "resplit", "fractions": {"train": 0.8, "dev": 0.2}},
+            {"type": "filter", "query": "trace_category == 'noise'"},
+        )
+    )
+    resplit, filter_ = config.data.datasets[0].preprocessing
+    assert isinstance(resplit, Resplit)
+    assert (resplit.seed, resplit.group_by) == (0, "source_id")
+    assert isinstance(filter_, Filter)
+    assert filter_.splits == ["train", "dev", "test"]
+    assert TrainConfig().data.datasets[0].preprocessing == []
+
+
 def test_scheduler_defaults_to_none() -> None:
     assert TrainConfig().training.scheduler is None
 
@@ -116,6 +138,28 @@ def test_scheduler_defaults_to_none() -> None:
         ),
         ({"augmentation": {"train": [CROP, {"type": "mixup"}]}}, "union_tag_invalid"),
         ({"evaluation": {"min_peak_height": 1.5}}, "less_than"),
+        (dataset_steps({"type": "resplit"}), "missing"),
+        (
+            dataset_steps({"type": "resplit", "fractions": {"train": 0.5}}),
+            "value_error",
+        ),
+        (
+            dataset_steps(
+                {"type": "resplit", "fractions": {"train": 1.5, "dev": -0.5}}
+            ),
+            "less_than_equal",
+        ),
+        (
+            dataset_steps({"type": "resplit", "fractions": {"val": 1.0}}),
+            "literal_error",
+        ),
+        (dataset_steps({"type": "filter"}), "missing"),
+        (dataset_steps({"type": "filter", "query": "x", "splits": []}), "too_short"),
+        (
+            dataset_steps({"type": "filter", "query": "x", "splits": ["dev", "dev"]}),
+            "value_error",
+        ),
+        (dataset_steps({"type": "shuffle"}), "union_tag_invalid"),
     ],
 )
 def test_invalid_configs_rejected(raw: dict[str, Any], expected: str) -> None:

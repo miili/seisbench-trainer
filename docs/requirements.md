@@ -85,6 +85,17 @@ Fixed decisions:
   concatenate the splits per type (train with train, dev with dev, test with
   test). Optional metadata filters (for example by network or magnitude)
   apply per dataset, before the split.
+- **FR-D2c Preprocessing:** each dataset entry has an ordered
+  `preprocessing` list, a discriminated union (FR-C7) in
+  `data/preprocessing/`. The steps run after the dataset's `query` and
+  before `train_dev_test()`. `filter` keeps the traces that match a metadata
+  query, in all splits or only in the listed ones (for example noise-only
+  training while dev and test stay whole). `resplit` overwrites the `split`
+  column with a seeded random assignment by `fractions`
+  (`{"train": …, "dev": …, "test": …}`). Traces that share the `group_by`
+  column (default `source_id`, the event) stay in one split; traces without
+  a value are assigned one by one. Its seed is separate from
+  `training.seed`, so every run with the same config sees the same test set.
 - **FR-D2a Per-dataset metrics:** when a run combines several datasets, the
   validation and test metrics are logged for the combined set and for each
   dataset separately, with the dataset name in the metric key. One dataset

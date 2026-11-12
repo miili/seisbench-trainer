@@ -107,7 +107,10 @@ Known defects and limits in the reference code. Fix these when porting:
 - **Sampling rate:** the dataset sampling rate, the window lengths in samples,
   the tolerances in seconds and the peak distances must stay consistent.
   Convert seconds to samples once, in one place.
-- **Splits:** use the dataset's own `train_dev_test()` split. Never use the
+- **Splits:** use the dataset's own `train_dev_test()` split, unless the
+  dataset's `preprocessing` has a `resplit` step. A resplit keeps events
+  together (`group_by`) and is seeded, so the test set is fixed for a config.
+  Do not let HPO vary preprocessing: that changes the test set. Never use the
   test split for model selection, threshold selection or HPO.
 - **Thresholds:** select detection thresholds on the validation set and apply
   them unchanged to the test set.

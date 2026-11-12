@@ -36,6 +36,7 @@ src/seisbench_trainer/
     config.py            DataConfig, AugmentationConfig
     phases.py            PHASES, PHASE_COLUMNS, augmentation types (no heavy imports)
     sources.py           SeisBenchDataset | LocalDataset | SyntheticDataset (tag "type"); each has .load()
+    preprocessing/       PreprocessingStep union (per dataset, before the split): filter, resplit
     synthetic.py         write_synthetic_dataset(): noise plus P and S wavelets
     steps.py             TrainStep union: pick_window, random_window, channel_dropout, add_gap, gaussian_noise, rotate_horizontal, real_noise
     perturbations.py     reviewed NumPy re-implementations of the seisbench perturbations

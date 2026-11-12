@@ -26,7 +26,7 @@ from pydantic import (
 
 from seisbench_trainer.data import perturbations
 from seisbench_trainer.data.phases import PHASE_COLUMNS, Augmentation
-from seisbench_trainer.data.sources import query_mask
+from seisbench_trainer.data.preprocessing import query_mask
 from seisbench_trainer.schema import StrictModel
 from seisbench_trainer.units import seconds_to_samples
 
