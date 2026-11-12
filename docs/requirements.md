@@ -117,7 +117,11 @@ Fixed decisions:
   of training augmentation steps, a discriminated union (FR-C7). Every
   random step states its `probability`: the chance that it is applied to one
   training example. Exactly one `random_window` crops to the model input
-  length, and `pick_window` steps come before it. Normalization and labels
+  length, and `pick_window` steps come before it. A `pick_window` must be
+  longer than the model input (checked when the pipeline is built),
+  otherwise the crop cannot move the pick and every pick sits at the same
+  position; scale its seconds with the input (e.g. 120 s / 60 s for PhaseNet
+  at 50 Hz instead of 60 s / 30 s at 100 Hz). Normalization and labels
   follow the list, and validation and test windows do not use it. Perturbation
   steps come after the crop. The windows are SeisBench's; the perturbations
   (`channel_dropout`, `add_gap`, `gaussian_noise`, `rotate_horizontal`,

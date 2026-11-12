@@ -97,10 +97,20 @@ class PickWindow(RandomStep):
         import seisbench.generate as sbg
 
         rate = context.sampling_rate
+        windowlen = seconds_to_samples(self.length_s, rate)
+        if windowlen <= context.window_samples:
+            # random_window could not move the pick: it would always sit
+            # before_s into the model input
+            raise ValueError(
+                f"pick_window length_s ({self.length_s:g} s = {windowlen} samples) "
+                f"must exceed the model input ({context.window_samples} samples "
+                f"= {context.window_samples / rate:g} s at {rate:g} Hz); "
+                "about twice the input is usual"
+            )
         return sbg.WindowAroundSample(
             list(PHASE_COLUMNS),
             samples_before=seconds_to_samples(self.before_s, rate),
-            windowlen=seconds_to_samples(self.length_s, rate),
+            windowlen=windowlen,
             selection="random",
             strategy="variable",
         )

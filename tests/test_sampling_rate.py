@@ -109,6 +109,18 @@ def test_fine_tuning_at_50hz_exports_a_50hz_model(
         | {
             "model": stretched,
             "data": config.data.model_dump(mode="json") | {"sampling_rate": STRETCHED},
+            # twice the 60 s model input, as 60 s / 30 s is at 100 Hz
+            "augmentation": {
+                "train": [
+                    {
+                        "type": "pick_window",
+                        "probability": 0.667,
+                        "length_s": 120.0,
+                        "before_s": 60.0,
+                    },
+                    {"type": "random_window"},
+                ]
+            },
             "evaluation": config.evaluation.model_dump(mode="json")
             | {"baseline": stretched, "plot_every_n_epochs": 0},
         }
@@ -128,3 +140,14 @@ def test_fine_tuning_at_50hz_exports_a_50hz_model(
     ]
     model = sbm.PhaseNet.load(exported.with_suffix(""))
     assert model.sampling_rate == STRETCHED
+
+
+def test_pick_window_must_exceed_the_model_input(synthetic_path: Path) -> None:
+    """At 50 Hz the 60 s default context is shorter than PhaseNet's 60.02 s."""
+    from seisbench_trainer.data.steps import PickWindow, StepContext
+
+    dataset = LocalDataset(path=synthetic_path).load("ZNE", STRETCHED)
+    context = StepContext(STRETCHED, 3001, "ZNE", dataset)
+    with pytest.raises(ValueError, match="must exceed the model input"):
+        PickWindow(probability=0.5).build(context)
+    PickWindow(probability=0.5, length_s=120.0, before_s=60.0).build(context)
