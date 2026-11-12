@@ -28,9 +28,10 @@ class CrossEntropyLoss(StrictModel):
     """Soft-target cross-entropy over the softmax output channels (PhaseNet).
 
     Per sample, ``-sum_c w_c * y_c * log(q_c)``; averaged over the samples of
-    each window, then over the batch. With the defaults this is SeisBench's
-    pick-benchmark ``vector_cross_entropy``: ``log(softmax + eps)``, no
-    weights, no mask.
+    each window, then over the batch. The default takes ``log_softmax`` of
+    the logits, as the original PhaseNet. ``from_logits=False`` gives
+    SeisBench's pick-benchmark ``vector_cross_entropy``
+    (``log(softmax + eps)``); both trained equally well on BohemiaSaxony.
     """
 
     type: Literal["cross_entropy"] = "cross_entropy"
@@ -40,7 +41,7 @@ class CrossEntropyLoss(StrictModel):
         "'N': 0.5}). Missing channels weigh 1.",
     )
     from_logits: bool = Field(
-        default=False,
+        default=True,
         description="True takes log_softmax of the logits (numerically stable, as "
         "in the original PhaseNet). False takes log(softmax + eps), as in "
         "SeisBench's pick-benchmark.",

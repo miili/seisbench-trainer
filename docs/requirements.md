@@ -155,9 +155,11 @@ Fixed decisions:
 - **FR-M6 Loss:** `model.loss` is a discriminated union (FR-C7) in
   `models/loss.py`; the adapter builds it for its model and computes it on
   the logits. PhaseNet has `cross_entropy`, soft-target cross-entropy over
-  the softmax channels. The defaults reproduce SeisBench's pick-benchmark
-  `vector_cross_entropy` (`log(softmax + eps)`). Options: `from_logits`
-  (`log_softmax`, as the original PhaseNet), `weights` per output channel
+  the softmax channels, by default from `log_softmax` of the logits
+  (`from_logits: true`, as the original PhaseNet). `from_logits: false`
+  reproduces SeisBench's pick-benchmark `vector_cross_entropy`
+  (`log(softmax + eps)`); on BohemiaSaxony both trained equally well
+  (loss grid, 2026-11-12). Options: `weights` per output channel
   by label (PhaseNet's `class_weights`, applied per channel inside the sum),
   and `pick_mask_s` (`false` turns it off): in windows with picks, only samples within this
   distance of a pick enter the loss, which removes most of the noise

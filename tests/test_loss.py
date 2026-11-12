@@ -22,12 +22,12 @@ def make_batch(picks: list[list[float]]) -> Batch:
     return {"y": y, "pick_samples": pick_samples}
 
 
-def test_default_is_the_reference_loss() -> None:
+def test_eps_variant_is_the_reference_loss() -> None:
     batch = make_batch([[], []])
     logits = torch.randn(2, 3, N_SAMPLES)
     reference = batch["y"] * torch.log(logits.softmax(dim=1) + 1e-5)
     expected = -reference.mean(dim=-1).sum(dim=-1).mean()
-    loss = CrossEntropyLoss().build("PSN", RATE)
+    loss = CrossEntropyLoss(from_logits=False).build("PSN", RATE)
     torch.testing.assert_close(loss(logits, batch), expected)
 
 
@@ -35,9 +35,10 @@ def test_from_logits_uses_log_softmax() -> None:
     batch = make_batch([[]])
     logits = 30 * torch.randn(1, 3, N_SAMPLES)  # saturated softmax
     expected = -(batch["y"] * logits.log_softmax(dim=1)).sum(dim=1).mean()
-    loss = CrossEntropyLoss(from_logits=True).build("PSN", RATE)
+    assert CrossEntropyLoss().from_logits
+    loss = CrossEntropyLoss().build("PSN", RATE)
     torch.testing.assert_close(loss(logits, batch), expected)
-    reference = CrossEntropyLoss().build("PSN", RATE)
+    reference = CrossEntropyLoss(from_logits=False).build("PSN", RATE)
     assert reference(logits, batch) < loss(logits, batch)  # eps caps the loss
 
 
@@ -51,7 +52,7 @@ def test_weights_follow_labels() -> None:
         logits[:, order], {**batch, "y": batch["y"][:, order]}
     )
     torch.testing.assert_close(psn, nps)
-    log_q = torch.log(logits.softmax(dim=1) + 1e-5)
+    log_q = logits.log_softmax(dim=1)
     terms = -(batch["y"] * log_q).mean(dim=-1)[0]
     torch.testing.assert_close(psn, terms[0] + 2 * terms[1])
 
