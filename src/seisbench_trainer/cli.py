@@ -1,5 +1,7 @@
 """Command-line interface."""
 
+from __future__ import annotations
+
 import logging
 import signal
 from pathlib import Path

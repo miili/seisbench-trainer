@@ -1,5 +1,7 @@
 """Train one model from a run config and track it in MLflow."""
 
+from __future__ import annotations
+
 import logging
 from collections.abc import Sequence
 from pathlib import Path

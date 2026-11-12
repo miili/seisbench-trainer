@@ -3,6 +3,8 @@
 Kept free of heavy imports (seisbench, torch), so config modules can use it.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from typing import Any
 

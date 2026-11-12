@@ -1,5 +1,7 @@
 """Keep only the traces that match a metadata query."""
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Literal, Self
 
@@ -43,7 +45,7 @@ class Filter(DatasetStep):
             raise ValueError(f"splits must be unique, got {self.splits}")
         return self
 
-    def apply(self, dataset: "sbd.WaveformDataset") -> None:
+    def apply(self, dataset: sbd.WaveformDataset) -> None:
         metadata = dataset.metadata
         keep = query_mask(metadata, self.query)
         if set(self.splits) != set(SPLITS):

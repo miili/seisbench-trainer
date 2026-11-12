@@ -1,5 +1,7 @@
 """Replace the dataset's train/dev/test split with a seeded random one."""
 
+from __future__ import annotations
+
 import logging
 import math
 from typing import TYPE_CHECKING, Annotated, Literal, Self
@@ -74,7 +76,7 @@ class Resplit(DatasetStep):
         codes[ungrouped] = len(uniques) + np.arange(np.count_nonzero(ungrouped))
         return codes
 
-    def apply(self, dataset: "sbd.WaveformDataset") -> None:
+    def apply(self, dataset: sbd.WaveformDataset) -> None:
         metadata = dataset.metadata
         groups = self._groups(metadata)
         sizes = np.bincount(groups)

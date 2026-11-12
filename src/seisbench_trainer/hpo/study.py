@@ -5,6 +5,8 @@ Optuna journal file. The first worker creates the study and its MLflow
 parent run; every trial is a normal training run, logged as a child run.
 """
 
+from __future__ import annotations
+
 import logging
 import warnings
 from collections.abc import Callable

@@ -5,6 +5,8 @@ model output (logits) and the batch. torch is imported only when a loss is
 built, so that config handling stays fast.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Annotated, Literal, Protocol
 
 from pydantic import Field, NonNegativeFloat, PositiveFloat, field_validator
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class LossFunction(Protocol):
-    def __call__(self, logits: "Tensor", batch: "Batch") -> "Tensor": ...
+    def __call__(self, logits: Tensor, batch: Batch) -> Tensor: ...
 
 
 class CrossEntropyLoss(StrictModel):
@@ -97,7 +99,7 @@ class _CrossEntropy:
         self.eps = eps
         self.mask_samples = mask_samples
 
-    def __call__(self, logits: "Tensor", batch: "Batch") -> "Tensor":
+    def __call__(self, logits: Tensor, batch: Batch) -> Tensor:
         import torch
 
         if self.from_logits:
@@ -114,7 +116,7 @@ class _CrossEntropy:
         return per_window.mean()
 
 
-def pick_mask(pick_samples: "Tensor", n_samples: int, half_width: int) -> "Tensor":
+def pick_mask(pick_samples: Tensor, n_samples: int, half_width: int) -> Tensor:
     """Samples within ``half_width`` of a pick; all samples if a window has none.
 
     ``pick_samples`` has shape (batch, phase, max_picks), NaN-padded (from

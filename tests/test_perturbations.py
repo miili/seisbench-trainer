@@ -1,5 +1,7 @@
 """The reviewed perturbations, including where they deviate from seisbench."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 

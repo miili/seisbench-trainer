@@ -76,5 +76,8 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ANN", "RUF"]
 # typographic dashes and minus signs in figure text
 allowed-confusables = ["–", "−"]
 
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

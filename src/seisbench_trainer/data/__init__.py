@@ -1,5 +1,7 @@
 """Dataset sources, augmentations and data loaders."""
 
+from __future__ import annotations
+
 from seisbench_trainer.data.config import AugmentationConfig, DataConfig
 from seisbench_trainer.data.sources import (
     DatasetConfig,

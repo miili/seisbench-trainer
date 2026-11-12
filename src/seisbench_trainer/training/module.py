@@ -1,5 +1,7 @@
 """LightningModule for any picker model config."""
 
+from __future__ import annotations
+
 import lightning.pytorch as pl
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torch import Tensor

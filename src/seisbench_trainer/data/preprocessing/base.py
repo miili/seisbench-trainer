@@ -1,5 +1,7 @@
 """Shared parts of the preprocessing steps."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Literal, get_args
 
@@ -28,5 +30,5 @@ class DatasetStep(StrictModel, ABC):
     """A step that changes a loaded dataset before it is split."""
 
     @abstractmethod
-    def apply(self, dataset: "sbd.WaveformDataset") -> None:
+    def apply(self, dataset: sbd.WaveformDataset) -> None:
         """Change ``dataset`` in place."""

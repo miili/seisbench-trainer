@@ -4,6 +4,8 @@ Thresholds are selected on the dev split (at ``evaluation.tolerance_s``) and
 applied unchanged to the evaluated split at every test tolerance.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from collections import defaultdict

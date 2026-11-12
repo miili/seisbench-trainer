@@ -11,6 +11,8 @@ seeds per DataLoader worker. Each class lists where it deviates from its
 ``seisbench.generate`` counterpart (seisbench 0.12).
 """
 
+from __future__ import annotations
+
 from numbers import Real
 from typing import TYPE_CHECKING, Any
 
@@ -160,7 +162,7 @@ class RealNoise:
     """
 
     def __init__(
-        self, noise: "AnyDataset", window_samples: int, low: float, high: float
+        self, noise: AnyDataset, window_samples: int, low: float, high: float
     ) -> None:
         self.noise = noise
         self.window_samples = window_samples

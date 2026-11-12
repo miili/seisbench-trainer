@@ -4,6 +4,8 @@ Optuna is imported only when a sampler, pruner or parameter is used, so the
 config loads without the optional ``hpo`` extra.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Literal, Self
 
@@ -48,7 +50,7 @@ class FloatParam(StrictModel):
             raise ValueError("low must be smaller than high")
         return self
 
-    def suggest(self, trial: "optuna.Trial") -> float:
+    def suggest(self, trial: optuna.Trial) -> float:
         return trial.suggest_float(
             self.path, self.low, self.high, log=self.log, step=self.step
         )
@@ -71,7 +73,7 @@ class IntParam(StrictModel):
             raise ValueError("low must be smaller than high")
         return self
 
-    def suggest(self, trial: "optuna.Trial") -> int:
+    def suggest(self, trial: optuna.Trial) -> int:
         return trial.suggest_int(
             self.path, self.low, self.high, log=self.log, step=self.step
         )
@@ -85,7 +87,7 @@ class CategoricalParam(StrictModel):
     path: str
     choices: list[Scalar] = Field(min_length=1)
 
-    def suggest(self, trial: "optuna.Trial") -> Scalar:
+    def suggest(self, trial: optuna.Trial) -> Scalar:
         return trial.suggest_categorical(self.path, self.choices)
 
     def example(self) -> Scalar:
@@ -102,7 +104,7 @@ class TPEConfig(StrictModel):
     n_startup_trials: NonNegativeInt = 10
     seed: int | None = None
 
-    def build(self) -> "optuna.samplers.BaseSampler":
+    def build(self) -> optuna.samplers.BaseSampler:
         from optuna.samplers import TPESampler
 
         return TPESampler(n_startup_trials=self.n_startup_trials, seed=self.seed)
@@ -112,7 +114,7 @@ class RandomConfig(StrictModel):
     type: Literal["random"] = "random"
     seed: int | None = None
 
-    def build(self) -> "optuna.samplers.BaseSampler":
+    def build(self) -> optuna.samplers.BaseSampler:
         from optuna.samplers import RandomSampler
 
         return RandomSampler(seed=self.seed)
@@ -127,7 +129,7 @@ class MedianConfig(StrictModel):
         default=5, description="Epochs before a trial can be pruned."
     )
 
-    def build(self) -> "optuna.pruners.BasePruner":
+    def build(self) -> optuna.pruners.BasePruner:
         from optuna.pruners import MedianPruner
 
         return MedianPruner(
@@ -141,7 +143,7 @@ class HyperbandConfig(StrictModel):
     min_resource: PositiveInt = Field(default=1, description="In epochs.")
     reduction_factor: int = Field(default=3, ge=2)
 
-    def build(self) -> "optuna.pruners.BasePruner":
+    def build(self) -> optuna.pruners.BasePruner:
         from optuna.pruners import HyperbandPruner
 
         return HyperbandPruner(

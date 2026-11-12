@@ -1,5 +1,7 @@
 """Top-level run config. One JSON file describes one run."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Literal, Self
 
@@ -123,7 +125,7 @@ class TrainConfig(StrictModel):
                 ) from error
         return self
 
-    def with_values(self, values: dict[str, JsonValue]) -> "TrainConfig":
+    def with_values(self, values: dict[str, JsonValue]) -> TrainConfig:
         """A validated copy with dotted-path values applied and no hpo section."""
         data: dict[str, JsonValue] = self.model_dump(mode="json")
         for path, value in values.items():

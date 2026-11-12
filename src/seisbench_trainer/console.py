@@ -4,6 +4,8 @@ Results go to stdout (``console``), so they can be piped or redirected.
 Logs go to stderr (``err_console``).
 """
 
+from __future__ import annotations
+
 import logging
 import math
 

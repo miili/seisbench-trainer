@@ -5,6 +5,8 @@ sampling rate, applies its optional metadata query and then its preprocessing
 steps (``data.preprocessing``).
 """
 
+from __future__ import annotations
+
 import hashlib
 import os
 import shutil
@@ -34,10 +36,10 @@ Preprocessing = Annotated[
 
 
 def _prepare(
-    dataset: "sbd.WaveformDataset",
+    dataset: sbd.WaveformDataset,
     query: str | None,
     preprocessing: list[PreprocessingStep],
-) -> "sbd.WaveformDataset":
+) -> sbd.WaveformDataset:
     if query is not None:
         dataset.filter(query_mask(dataset.metadata, query), inplace=True)
     for step in preprocessing:
@@ -61,7 +63,7 @@ class SeisBenchDataset(StrictModel):
         """Short name for experiment and model names."""
         return self.name
 
-    def load(self, component_order: str, sampling_rate: float) -> "sbd.WaveformDataset":
+    def load(self, component_order: str, sampling_rate: float) -> sbd.WaveformDataset:
         import seisbench.data as sbd
 
         dataset_class = getattr(sbd, self.name, None)
@@ -91,7 +93,7 @@ class LocalDataset(StrictModel):
         """Short name for experiment and model names."""
         return self.path.name
 
-    def load(self, component_order: str, sampling_rate: float) -> "sbd.WaveformDataset":
+    def load(self, component_order: str, sampling_rate: float) -> sbd.WaveformDataset:
         import seisbench.data as sbd
 
         dataset = sbd.WaveformDataset(
@@ -146,7 +148,7 @@ class SyntheticDataset(StrictModel):
                 shutil.rmtree(tmp)
         return path
 
-    def load(self, component_order: str, sampling_rate: float) -> "sbd.WaveformDataset":
+    def load(self, component_order: str, sampling_rate: float) -> sbd.WaveformDataset:
         local = LocalDataset(
             path=self.ensure_written(),
             query=self.query,

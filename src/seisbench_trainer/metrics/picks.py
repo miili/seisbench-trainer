@@ -8,6 +8,8 @@ Both functions return ``PickScores``: one residual and one score per true
 pick, plus the scores of the negative examples.
 """
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Self

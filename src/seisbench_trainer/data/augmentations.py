@@ -3,6 +3,8 @@
 Label augmentations depend on the model and are appended by the caller.
 """
 
+from __future__ import annotations
+
 import math
 import zlib
 from typing import Any

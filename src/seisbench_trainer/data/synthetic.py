@@ -4,6 +4,8 @@ Each event trace has Gaussian noise plus a P and an S wavelet. P is strongest
 on Z, S on the horizontals. A fraction of the traces is pure noise (no picks).
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import numpy as np

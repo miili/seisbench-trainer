@@ -1,5 +1,7 @@
 """Load, split, concatenate and preload datasets; build DataLoaders."""
 
+from __future__ import annotations
+
 import logging
 import operator
 from functools import reduce

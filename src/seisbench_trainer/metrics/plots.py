@@ -1,5 +1,7 @@
 """Evaluation figures. Uses the object-oriented matplotlib API (no pyplot)."""
 
+from __future__ import annotations
+
 import base64
 import html
 import io

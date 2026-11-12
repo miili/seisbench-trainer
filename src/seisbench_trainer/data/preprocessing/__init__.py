@@ -8,6 +8,8 @@ left it: a ``filter`` after a ``resplit`` acts on the new splits.
 seisbench is not imported here, so that config handling stays fast.
 """
 
+from __future__ import annotations
+
 from typing import Annotated
 
 from pydantic import Field

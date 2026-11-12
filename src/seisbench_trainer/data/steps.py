@@ -12,6 +12,8 @@ seisbench is imported only when a window step is built, so that config
 handling stays fast.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Literal, Self
@@ -53,7 +55,7 @@ class StepContext:
     sampling_rate: float
     window_samples: int
     component_order: str
-    train: "AnyDataset"
+    train: AnyDataset
     """The training split (the noise source of ``real_noise``)."""
 
 

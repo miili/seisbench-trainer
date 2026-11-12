@@ -1,5 +1,7 @@
 """Per-epoch validation metrics and figures."""
 
+from __future__ import annotations
+
 from collections import defaultdict
 from collections.abc import Mapping
 from typing import Any, cast
