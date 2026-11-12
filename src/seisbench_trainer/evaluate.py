@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 import seisbench.models as sbm
 import torch
-from mlflow.artifacts import download_artifacts, load_dict
+from mlflow.artifacts import download_artifacts
 from mlflow.data.pandas_dataset import PandasDataset, from_pandas
 from mlflow.models import get_model_info
 from pydantic import TypeAdapter
@@ -99,13 +99,7 @@ def load_model(ref: str) -> LoadedModel:
         with TemporaryDirectory() as tmp:
             path = Path(download_artifacts(f"models:/{model_id}", dst_path=tmp))
             extra = path / "extra_files"
-            stored = extra / TRAIN_CONFIG
-            if stored.is_file():
-                source = TrainConfig.model_validate_json(stored.read_text())
-            else:  # models logged before the config was stored with them
-                run_id = mlflow.get_logged_model(model_id).source_run_id
-                logged = load_dict(f"runs:/{run_id}/config.json")
-                source = TrainConfig.model_validate(logged)
+            source = TrainConfig.model_validate_json((extra / TRAIN_CONFIG).read_text())
             export = next(extra.glob("*.pt")).with_suffix("")
             weights = source.model.model_copy(update={"pretrained": str(export)})
             model = weights.load_pretrained()
