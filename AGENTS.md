@@ -120,7 +120,8 @@ Known defects and limits in the reference code. Fix these when porting:
 
 ## Tooling
 
-- Python 3.13 (`.python-version`). Package manager: `uv`. Build backend: `uv_build`.
+- Python 3.13 (`.python-version`). Package manager: `uv`. Build backend: setuptools with `setuptools-scm`;
+  the version comes from git (no version string in the code).
 - Source layout: `src/seisbench_trainer/`.
 - Install the environment: `uv sync`
 - Run the entry point: `uv run seisbench-trainer ...`
@@ -177,7 +178,8 @@ Known defects and limits in the reference code. Fix these when porting:
   the originals mix components, label erased picks or fail mid-training.
   Each class documents its deviations; keep them when you add one.
 - Each run must be reproducible from its MLflow record alone: the resolved
-  config, the seed, the dataset name and version, the git commit, and the
+  config, the seed, the dataset name and version, the seisbench-trainer version
+  (which names the git commit), and the
   package versions.
 - Before you report a change as done, run the linter and the tests.
 - Do not commit data, checkpoints, `mlflow.db`, `mlruns/` or `mlartifacts/`.

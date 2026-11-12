@@ -1,10 +1,10 @@
 [project]
 name = "seisbench-trainer"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Training, evaluation and hyperparameter optimisation workbench for SeisBench phase pickers, tracked with MLflow"
 readme = "README.md"
 authors = [
-    { name = "miili", email = "marius.isken@gmail.com" }
+    { name = "Marius Paul Isken", email = "marius.isken@gfz.de" }
 ]
 requires-python = ">=3.13"
 dependencies = [
@@ -45,8 +45,17 @@ dev = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.12.22,<0.13.0"]
-build-backend = "uv_build"
+requires = ["setuptools>=80", "setuptools-scm>=9"]
+build-backend = "setuptools.build_meta"
+
+# The version comes from git: the last tag, the commits since, the commit
+# hash, and a date suffix if the tree is dirty (e.g. 0.1.dev12+gfd3a09e.d20261112).
+[tool.setuptools_scm]
+
+[tool.uv]
+# rebuild the editable install when the commit or the tags change, so that
+# the installed version (and with it the logged commit) stays current
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 
 # Laptop development: CPU-only torch wheels. `pip install -e .` on the
 # cluster (conda) ignores this section.

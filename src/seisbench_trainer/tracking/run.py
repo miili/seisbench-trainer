@@ -3,7 +3,6 @@
 import os
 import re
 import socket
-import subprocess
 from importlib.metadata import version
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -101,45 +100,6 @@ def flatten(value: JsonValue, prefix: str = "") -> dict[str, str]:
     return flat
 
 
-def _git(*args: str) -> str | None:
-    try:
-        result = subprocess.run(
-            ["git", *args],
-            cwd=Path(__file__).parent,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return None
-    return result.stdout.strip()
-
-
-def read_git_head(start: Path) -> str | None:
-    """Commit of the repository containing ``start``, read from ``.git``.
-
-    Fallback for nodes without the git executable (e.g. cluster nodes).
-    """
-    for directory in (start, *start.parents):
-        git_dir = directory / ".git"
-        head = git_dir / "HEAD"
-        if not head.is_file():
-            continue
-        content = head.read_text().strip()
-        if not content.startswith("ref: "):
-            return content  # detached HEAD
-        ref = content.removeprefix("ref: ")
-        if (git_dir / ref).is_file():
-            return (git_dir / ref).read_text().strip()
-        packed = git_dir / "packed-refs"
-        if packed.is_file():
-            for line in packed.read_text().splitlines():
-                if line.endswith(f" {ref}"):
-                    return line.split()[0]
-        return None
-    return None
-
-
 def run_tags(config: TrainConfig) -> dict[str, str]:
     tags = {
         "model": config.model.type,
@@ -153,11 +113,7 @@ def run_tags(config: TrainConfig) -> dict[str, str]:
         for name in SLURM_VARIABLES
         if name in os.environ
     }
-    commit = _git("rev-parse", "HEAD") or read_git_head(Path(__file__).parent)
-    if commit is not None:
-        tags["git.commit"] = commit
-        status = _git("status", "--porcelain")
-        tags["git.dirty"] = "unknown" if status is None else str(bool(status))
+    # the seisbench-trainer version (setuptools-scm) names the commit
     return tags | config.tracking.tags
 
 

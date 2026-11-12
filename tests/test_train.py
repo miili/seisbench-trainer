@@ -10,7 +10,7 @@ from pydantic import JsonValue
 
 from seisbench_trainer.config import TrainConfig
 from seisbench_trainer.tracking import run as tracking_run
-from seisbench_trainer.tracking.run import flatten, model_name, read_git_head
+from seisbench_trainer.tracking.run import flatten, model_name
 from seisbench_trainer.training import train as train_module
 from seisbench_trainer.training.train import train
 
@@ -18,24 +18,6 @@ from seisbench_trainer.training.train import train
 def test_flatten() -> None:
     nested: JsonValue = {"a": {"b": 1, "c": [{"d": None}, "x"]}, "e": True}
     assert flatten(nested) == {"a.b": "1", "a.c.0.d": "None", "a.c.1": "x", "e": "True"}
-
-
-def test_read_git_head(tmp_path: Path) -> None:
-    git_dir = tmp_path / "repo" / ".git"
-    (git_dir / "refs" / "heads").mkdir(parents=True)
-    (git_dir / "HEAD").write_text("ref: refs/heads/main\n")
-    (git_dir / "refs" / "heads" / "main").write_text("abc123\n")
-    nested = tmp_path / "repo" / "src" / "pkg"
-    nested.mkdir(parents=True)
-    assert read_git_head(nested) == "abc123"
-
-    (git_dir / "refs" / "heads" / "main").unlink()
-    (git_dir / "packed-refs").write_text("# pack-refs\ndef456 refs/heads/main\n")
-    assert read_git_head(nested) == "def456"
-
-    (git_dir / "HEAD").write_text("0123abcd\n")
-    assert read_git_head(nested) == "0123abcd"
-    assert read_git_head(tmp_path) is None
 
 
 def test_model_name(synthetic_path: Path, tmp_path: Path) -> None:

@@ -2803,7 +2803,6 @@ wheels = [
 
 [[package]]
 name = "seisbench-trainer"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "lightning" },

@@ -420,8 +420,9 @@ Status: done on the laptop.
   The `evaluate` command creates its own run (tag `purpose=evaluation`).
   `slurm/evaluate.sbatch` runs it on a GPU node.
 - Training runs record no dataset input yet (FR-D6); evaluation does.
-- The git commit tag falls back to reading `.git` directly; the cluster's
-  compute nodes have no git executable (then `git.dirty` is `unknown`).
+- The commit is part of the package version (setuptools-scm, fixed at
+  install time), so compute nodes without a git executable record it too.
+  Reinstall after committing (`pip install -e .`; `uv sync` does it itself).
 
 ## Step 7: Combined datasets [FR-D2a, FR-D2b]
 

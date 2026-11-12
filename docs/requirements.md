@@ -266,8 +266,9 @@ validation set after every epoch and logged with the epoch as the step.
 
 - **FR-L1:** The code only uses `MLFLOW_TRACKING_URI` (or `tracking.uri`).
   The code is the same for SQLite, the file store and a server.
-- **FR-L2:** Each run records the resolved config, git commit and dirty
-  flag, package versions (torch, seisbench, lightning, mlflow), host, Slurm
+- **FR-L2:** Each run records the resolved config, the package version of
+  seisbench-trainer (from git via setuptools-scm: tag, commit hash and a
+  dirty marker), package versions (torch, seisbench, lightning, mlflow), host, Slurm
   job and array IDs, and tags (`purpose`, `model`, `dataset`, `study`).
 - **FR-L3:** Enable system metrics (CPU, GPU, RAM) once per run.
 - **FR-L4:** Log the best model as an MLflow **LoggedModel**, with its step

@@ -94,7 +94,8 @@ rate. For example, `original` needs `ENZ`.
 ## Outputs per run
 
 - metrics per epoch and system metrics;
-- `config.json`, flattened params, and tags (git commit, package versions,
+- `config.json`, flattened params, and tags (package versions; the seisbench-trainer
+  version names the git commit,
   host, Slurm IDs);
 - `evaluation/validation_P.html` and `validation_S.html`: the validation
   figures of all epochs with a slider (open them in the Artifacts tab);
