@@ -74,8 +74,12 @@ class EvaluationRow:
 
 def _model_id(ref: str) -> str:
     if RUN_ID.fullmatch(ref):
+        # search the run's experiment: the default is only the active one
+        experiment_id = mlflow.get_run(ref).info.experiment_id
         models = mlflow.search_logged_models(
-            filter_string=f"source_run_id = '{ref}'", output_format="list"
+            experiment_ids=[experiment_id],
+            filter_string=f"source_run_id = '{ref}'",
+            output_format="list",
         )
         if not models:
             raise ValueError(f"run {ref} has no logged model")

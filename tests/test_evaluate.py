@@ -114,6 +114,8 @@ def test_cli_evaluates_a_training_run(
         evaluation={"baseline": None, "plot_every_n_epochs": 0},
     )
     run_id = train(config)
+    # a new process starts in the default experiment, not the run's
+    mlflow.set_experiment(experiment_id="0")
     loaded = load_model(run_id)
     assert loaded.source == config
     assert loaded.model_id is not None
