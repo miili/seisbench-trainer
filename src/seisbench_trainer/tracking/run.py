@@ -42,8 +42,16 @@ def set_experiment(name: str) -> str:
 
     Without the kind tag, the MLflow 3 UI may show it as a GenAI experiment.
     Returns the experiment ID.
+
+    The folder store checks the name and creates the experiment in two steps,
+    so Slurm jobs that start together can each create an experiment of the
+    same name. Every process then activates the oldest one (ties broken by
+    ID), so their runs end up in one experiment; the others stay empty.
     """
-    experiment = mlflow.set_experiment(name)
+    mlflow.set_experiment(name)
+    same_name = mlflow.search_experiments(filter_string=f"name = '{name}'")
+    experiment = min(same_name, key=lambda e: (e.creation_time or 0, e.experiment_id))
+    mlflow.set_experiment(experiment_id=experiment.experiment_id)
     if experiment.tags.get(EXPERIMENT_KIND) != MODEL_TRAINING:
         mlflow.set_experiment_tag(EXPERIMENT_KIND, MODEL_TRAINING)
     return experiment.experiment_id

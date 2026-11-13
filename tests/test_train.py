@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import shutil
 from pathlib import Path
 
 import mlflow
@@ -193,3 +195,28 @@ def test_non_finite_training_loss_stops_the_run(
     batch = {"X": x, "y": torch.zeros(2, 3, 3001)}
     with pytest.raises(FloatingPointError, match="training loss is nan"):
         module.training_step(batch, 0)
+
+
+def test_concurrent_first_runs_share_the_oldest_experiment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The folder store can hold two experiments of one name (a race)."""
+    monkeypatch.setenv("MLFLOW_ALLOW_FILE_STORE", "true")
+    store = tmp_path / "mlruns"
+    previous = mlflow.get_tracking_uri()
+    mlflow.set_tracking_uri(store.as_uri())
+    try:
+        first = tracking_run.set_experiment("dup")
+        # a job that started at the same time and created its own, earlier
+        twin_id = "999"
+        shutil.copytree(store / first, store / twin_id)
+        meta = (store / twin_id / "meta.yaml").read_text().replace(first, twin_id)
+        meta = re.sub(r"creation_time: \d+", "creation_time: 1", meta)
+        (store / twin_id / "meta.yaml").write_text(meta)
+
+        assert tracking_run.set_experiment("dup") == twin_id
+        with mlflow.start_run() as run:
+            assert run.info.experiment_id == twin_id
+        assert tracking_run.set_experiment("other") not in (first, twin_id)
+    finally:
+        mlflow.set_tracking_uri(previous)
