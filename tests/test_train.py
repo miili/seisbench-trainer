@@ -5,6 +5,7 @@ from pathlib import Path
 import mlflow
 import pytest
 import seisbench.models as sbm
+import torch
 from conftest import small_config
 from mlflow import MlflowClient
 from mlflow.artifacts import download_artifacts, list_artifacts, load_dict, load_text
@@ -14,6 +15,7 @@ from seisbench_trainer.config import TrainConfig
 from seisbench_trainer.tracking import run as tracking_run
 from seisbench_trainer.tracking.run import flatten, model_name
 from seisbench_trainer.training import train as train_module
+from seisbench_trainer.training.module import PickerModule
 from seisbench_trainer.training.train import train
 
 
@@ -180,3 +182,14 @@ def test_early_stopping_uses_min_delta() -> None:
     )
     callbacks = train_module._callbacks(no_stop, placeholder, placeholder)
     assert not any(isinstance(c, EarlyStopping) for c in callbacks)
+
+
+def test_non_finite_training_loss_stops_the_run(
+    synthetic_path: Path, tmp_path: Path
+) -> None:
+    module = PickerModule(small_config(synthetic_path, tmp_path, epochs=1))
+    x = torch.zeros(2, 3, 3001)
+    x[0, 1] = torch.nan
+    batch = {"X": x, "y": torch.zeros(2, 3, 3001)}
+    with pytest.raises(FloatingPointError, match="training loss is nan"):
+        module.training_step(batch, 0)

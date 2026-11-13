@@ -17,6 +17,7 @@ from seisbench_trainer.data import (
     SyntheticDataset,
 )
 from seisbench_trainer.data.augmentations import (
+    ZeroNonFinite,
     eval_augmentations,
     train_augmentations,
 )
@@ -221,3 +222,28 @@ def test_step_probability_is_applied(synthetic_path: Path) -> None:
     always = samples(noise | {"probability": 1.0})
     assert all(np.array_equal(a, b) for a, b in zip(plain, never, strict=True))
     assert not any(np.array_equal(a, b) for a, b in zip(plain, always, strict=True))
+
+
+def test_non_finite_samples_become_zero(synthetic_path: Path) -> None:
+    x = np.ones((3, 100))
+    x[1] = np.nan  # a missing component
+    x[0, 10:20] = np.inf
+    state = {"X": (x, {"trace_name": "a"})}
+    ZeroNonFinite()(state)
+    out, metadata = state["X"]
+    assert np.isfinite(out).all()
+    assert (out[1] == 0).all() and (out[0, 10:20] == 0).all()
+    assert (out[2] == 1).all() and metadata == {"trace_name": "a"}
+    assert np.isnan(x[1]).all()  # input untouched
+
+    finite = np.ones((3, 100))
+    state = {"X": (finite, None)}
+    ZeroNonFinite()(state)
+    assert state["X"][0] is finite  # no copy when there is nothing to fill
+
+    # first in both pipelines: perturbations and normalization see no NaN
+    context = StepContext(SAMPLING_RATE, WINDOW, "ZNE", local(synthetic_path))
+    train = train_augmentations(AugmentationConfig(), context)
+    evaluation = eval_augmentations(AugmentationConfig(), WINDOW, 0)
+    assert isinstance(train[0], ZeroNonFinite)
+    assert isinstance(evaluation[0], ZeroNonFinite)

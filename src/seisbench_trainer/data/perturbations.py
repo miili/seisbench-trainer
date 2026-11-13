@@ -175,7 +175,8 @@ class RealNoise:
     The window is then demeaned and scaled so that its peak is ``scale``
     times the waveform peak; ``scale`` is drawn uniformly from (``low``,
     ``high``). This is seisbench's ``scaling_type="peak"``. Differences:
-    noise traces shorter than the window or without signal are excluded once,
+    noise traces shorter than the window, without signal or with non-finite
+    samples are excluded once,
     here, where seisbench raises in the middle of training or divides by zero
     (NaN waveforms); a noise window that is all zeros is skipped. The noise
     traces must have the run's component order and sampling rate, which holds
@@ -209,11 +210,16 @@ class RealNoise:
         ]
         if not self.indices:
             raise ValueError(
-                f"no noise trace with at least {window_samples} samples and signal"
+                f"no noise trace with at least {window_samples} finite samples "
+                "and signal"
             )
 
     def _usable(self, waveforms: Waveforms) -> bool:
-        return waveforms.shape[-1] >= self.window_samples and _peak(waveforms) > 0
+        return (
+            waveforms.shape[-1] >= self.window_samples
+            and bool(np.isfinite(waveforms).all())
+            and _peak(waveforms) > 0
+        )
 
     def __call__(self, state_dict: StateDict) -> None:
         x, metadata = state_dict["X"]

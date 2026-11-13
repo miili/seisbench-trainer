@@ -60,6 +60,23 @@ class SeededPickWindow(sbg.FixedWindow):
         super().__call__(state_dict, p0=start)
 
 
+class ZeroNonFinite:
+    """Set NaN and infinite samples to zero; the first step of every pipeline.
+
+    Datasets store missing components and gaps as NaN (deeplowfrequency:
+    whole NaN channels of stations without that component). One NaN sample
+    makes the loss of its whole batch NaN, and training never recovers. Zero
+    is what seisbench's ``annotate`` feeds for a missing component, so the
+    model sees the same at inference. Picks in a NaN stretch stay labelled.
+    """
+
+    def __call__(self, state_dict: StateDict) -> None:
+        x, metadata = state_dict["X"]
+        if not np.isfinite(x).all():
+            x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+            state_dict["X"] = (x, metadata)
+
+
 class PickSamples:
     """Add key ``pick_samples``: the pick positions in the window per phase.
 
@@ -97,7 +114,11 @@ def train_augmentations(
     config: AugmentationConfig, context: StepContext
 ) -> list[Augmentation]:
     """The configured training steps, then normalization."""
-    return [*(step.build(context) for step in config.train), *_normalize(config)]
+    return [
+        ZeroNonFinite(),
+        *(step.build(context) for step in config.train),
+        *_normalize(config),
+    ]
 
 
 def eval_augmentations(
@@ -105,6 +126,7 @@ def eval_augmentations(
 ) -> list[Augmentation]:
     """Deterministic windows for validation and test, plus ``pick_samples``."""
     return [
+        ZeroNonFinite(),
         SeededPickWindow(window_samples, seed),
         *_normalize(config),
         PickSamples(window_samples),

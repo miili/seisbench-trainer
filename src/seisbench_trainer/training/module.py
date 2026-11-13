@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import lightning.pytorch as pl
+import torch
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torch import Tensor
 
@@ -36,6 +37,12 @@ class PickerModule(pl.LightningModule):
     def training_step(self, batch: Batch, batch_idx: int) -> Tensor:
         logits = self.config.model.forward_logits(self.model, batch["X"])
         loss = self.loss(logits, batch)
+        if not torch.isfinite(loss):
+            # a NaN step makes every weight NaN; the run would go on and
+            # export a model that predicts nothing
+            raise FloatingPointError(
+                f"training loss is {loss.item()} at step {self.global_step}"
+            )
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
