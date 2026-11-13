@@ -146,6 +146,15 @@ sigma 0.1 s, plateau 5, stop 15, at most 100 epochs), one seed (42).
   windows with pick labels; they should be removed from the dataset
   (list: `~/sbt-runs/deeplowfrequency/nonfinite_traces.csv`).
 
+After this suite the defaults became: `normalization` std (for PhaseNet
+a no-op: `annotate_batch_pre` normalizes each channel again by the
+model's own `norm`, as at inference) and the train steps `pick_window`,
+`random_window`, `rotate_horizontal` 0.5, `real_noise` 0.5 (a no-op
+with a warning on datasets without noise traces). Real noise is a
+default for robustness on noisy target data, which this validation split
+cannot measure; experiment `deeplowfrequency/PhaseNet-e2e-v2` reruns the
+suite on these defaults with the augmentations ablated.
+
 Open: sigma 0.2 s with more seeds and sigma 0.3-0.4 s (also at 50 Hz,
 to separate width in seconds from width in samples); `real_noise`
 evaluated on noisier data than its own validation split.

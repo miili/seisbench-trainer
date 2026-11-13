@@ -189,8 +189,14 @@ def test_real_noise_excludes_short_traces(synthetic_path: Path) -> None:
         RealNoise(train, too_long, 0.0, 1.0, "ZNE")
 
 
-def test_real_noise_query_must_select_traces(synthetic_path: Path) -> None:
+@pytest.mark.parametrize(
+    "query", ['trace_category == "explosion"', 'no_such_column == "noise"']
+)
+def test_real_noise_without_noise_traces_adds_nothing(
+    synthetic_path: Path, query: str, caplog: pytest.LogCaptureFixture
+) -> None:
     context = StepContext(100.0, N_SAMPLES, "ZNE", train_split(synthetic_path))
-    step = RealNoiseStep(probability=1.0, query='trace_category == "explosion"')
-    with pytest.raises(ValueError, match="selects no traces"):
-        step.build(context)
+    step = RealNoiseStep(probability=1.0, query=query).build(context)
+    assert "selects no training traces" in caplog.text
+    x = waveforms()
+    np.testing.assert_array_equal(apply(step, x, PICK)[0], x)

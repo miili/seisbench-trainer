@@ -14,7 +14,13 @@ from pydantic import (
 )
 
 from seisbench_trainer.data.sources import DatasetConfig, SeisBenchDataset
-from seisbench_trainer.data.steps import PickWindow, RandomWindow, TrainStep
+from seisbench_trainer.data.steps import (
+    PickWindow,
+    RandomWindow,
+    RealNoise,
+    RotateHorizontal,
+    TrainStep,
+)
 from seisbench_trainer.schema import StrictModel
 
 ComponentOrder = Annotated[str, StringConstraints(pattern=r"^[A-Z0-9]{1,3}$")]
@@ -62,8 +68,15 @@ class DataConfig(StrictModel):
 
 
 def _default_train_steps() -> list[TrainStep]:
-    # pick-benchmark PhaseNet recipe: 2/3 pick context window, then the crop
-    return [PickWindow(probability=2 / 3), RandomWindow()]
+    # pick-benchmark PhaseNet recipe: 2/3 pick context window, then the crop;
+    # then half the windows rotated, and real noise on half the pick windows
+    # (a no-op for datasets without noise traces)
+    return [
+        PickWindow(probability=2 / 3),
+        RandomWindow(),
+        RotateHorizontal(probability=0.5),
+        RealNoise(probability=0.5),
+    ]
 
 
 class AugmentationConfig(StrictModel):
@@ -80,8 +93,11 @@ class AugmentationConfig(StrictModel):
         description="Model input length. None uses the model's own input length.",
     )
     normalization: Literal["peak", "std"] = Field(
-        default="peak",
-        description="Applied after the training steps and in evaluation alike.",
+        default="std",
+        description="Per channel, after the training steps and in evaluation "
+        "alike. PhaseNet then normalizes each channel again by its own "
+        "``norm`` (annotate_batch_pre), as at inference, so for PhaseNet this "
+        "does not change the model input.",
     )
     label_sigma_s: PositiveFloat = Field(
         default=0.1, description="Width of the pick label curve."

@@ -26,6 +26,14 @@
       },
       {
         "type": "random_window"
+      },
+      {
+        "type": "rotate_horizontal",
+        "probability": 0.5
+      },
+      {
+        "type": "real_noise",
+        "probability": 0.5
       }
     ],
     "label_sigma_s": 0.2

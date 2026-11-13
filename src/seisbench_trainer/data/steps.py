@@ -14,10 +14,12 @@ handling stays fast.
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Literal, Self
 
+import pandas as pd
 from pydantic import (
     AfterValidator,
     Field,
@@ -27,13 +29,15 @@ from pydantic import (
 )
 
 from seisbench_trainer.data import perturbations
-from seisbench_trainer.data.phases import PHASE_COLUMNS, Augmentation
+from seisbench_trainer.data.phases import PHASE_COLUMNS, Augmentation, StateDict
 from seisbench_trainer.data.preprocessing import query_mask
 from seisbench_trainer.schema import StrictModel
 from seisbench_trainer.units import seconds_to_samples
 
 if TYPE_CHECKING:
     from seisbench_trainer.data.loaders import AnyDataset
+
+logger = logging.getLogger(__name__)
 
 Probability = Annotated[float, Field(ge=0.0, le=1.0)]
 
@@ -177,12 +181,18 @@ class RotateHorizontal(RandomStep):
         return perturbations.RotateHorizontal(context.component_order)
 
 
+def _unchanged(state_dict: StateDict) -> None:
+    """Leave the sample as it is."""
+
+
 class RealNoise(RandomStep):
     """Add a random window of a recorded noise trace from the training split.
 
     The noise's horizontal components are rotated by a random angle first.
     Windows without a pick (noise traces, pick-free crops) get no noise, so
-    ``probability`` is the chance per window with a pick.
+    ``probability`` is the chance per window with a pick. If ``query``
+    selects no training traces (or names a missing column), the step logs a
+    warning and adds nothing.
     """
 
     type: Literal["real_noise"] = "real_noise"
@@ -197,11 +207,21 @@ class RealNoise(RandomStep):
     )
 
     def build_step(self, context: StepContext) -> Augmentation:
-        noise = context.train.filter(
-            query_mask(context.train.metadata, self.query), inplace=False
-        )
-        if noise is None or len(noise) == 0:
-            raise ValueError(f"real_noise query {self.query!r} selects no traces")
+        try:
+            mask = query_mask(context.train.metadata, self.query)
+        except pd.errors.UndefinedVariableError:  # e.g. no trace_category
+            mask = None
+        if mask is None or not mask.any():
+            # real_noise is a default step: datasets without noise traces
+            # (BohemiaSaxony, ETHZ) train without it instead of failing
+            logger.warning(
+                "real_noise query %r selects no training traces; no real noise "
+                "is added",
+                self.query,
+            )
+            return _unchanged
+        noise = context.train.filter(mask, inplace=False)
+        assert noise is not None
         return perturbations.RealNoise(
             noise, context.window_samples, *self.scale, context.component_order
         )
