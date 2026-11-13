@@ -183,7 +183,8 @@ ALL_STEPS: list[dict[str, Any]] = [
     {"type": "add_gap", "probability": 1.0},
     {"type": "gaussian_noise", "probability": 1.0, "scale": [0.1, 0.2]},
     {"type": "rotate_horizontal", "probability": 1.0},
-    {"type": "real_noise", "probability": 1.0, "scale": [0.5, 1.0]},
+    {"type": "real_noise", "probability": 1.0, "level": {"type": "peak"}},
+    {"type": "real_noise", "probability": 1.0, "level": {"type": "std"}},
 ]
 
 
@@ -247,3 +248,41 @@ def test_non_finite_samples_become_zero(synthetic_path: Path) -> None:
     evaluation = eval_augmentations(AugmentationConfig(), WINDOW, 0)
     assert isinstance(train[0], ZeroNonFinite)
     assert isinstance(evaluation[0], ZeroNonFinite)
+
+
+def test_noisy_validation_windows_are_seeded(synthetic_path: Path) -> None:
+    from seisbench_trainer.data.steps import NoisyValidation
+
+    dataset = local(synthetic_path)
+    noise = NoisyValidation().build(dataset, WINDOW, "ZNE")
+    assert noise is not None
+
+    def generator(with_noise: bool) -> sbg.GenericGenerator:
+        generator = sbg.GenericGenerator(dataset)
+        pipeline = eval_augmentations(
+            AugmentationConfig(), WINDOW, 0, noise if with_noise else None
+        )
+        generator.add_augmentations([*pipeline, labeller()])
+        return generator
+
+    clean, first, second = generator(False), generator(True), generator(True)
+    changed = unchanged = 0
+    for index in range(30):
+        np.random.seed(index)  # the global state must not matter
+        a = first[index]
+        np.random.seed(1000 + index)
+        b = second[index]
+        np.testing.assert_array_equal(a["X"], b["X"])  # same noise every pass
+        has_pick = bool(np.isfinite(a["pick_samples"]).any())
+        same_as_clean = np.array_equal(a["X"], clean[index]["X"])
+        assert same_as_clean != has_pick  # only windows with a pick get noise
+        changed += has_pick
+        unchanged += not has_pick
+    assert changed > 0 and unchanged > 0
+
+
+def test_noisy_validation_without_noise_traces(synthetic_path: Path) -> None:
+    from seisbench_trainer.data.steps import NoisyValidation
+
+    step = NoisyValidation(query='trace_category == "explosion"')
+    assert step.build(local(synthetic_path), WINDOW, "ZNE") is None

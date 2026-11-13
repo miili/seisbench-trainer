@@ -27,7 +27,7 @@ from seisbench_trainer.metrics.plots import (
 from seisbench_trainer.metrics.scores import summarize
 from seisbench_trainer.models import ModelConfig
 from seisbench_trainer.tracking.run import dataset_label
-from seisbench_trainer.training.module import PickerModule
+from seisbench_trainer.training.module import NOISY, PickerModule
 from seisbench_trainer.units import seconds_to_samples
 
 BASELINE = "baseline/"
@@ -136,14 +136,15 @@ class EvaluationCallback(pl.Callback):
         assert isinstance(pred, Tensor)
         assert isinstance(x, Tensor) and isinstance(picks, Tensor)
         pick_array = picks.cpu().numpy()
-        self._collect("", self.config.model, pl_module.model, pred, pick_array)
+        loader = "" if dataloader_idx == 0 else NOISY
+        self._collect(loader, self.config.model, pl_module.model, pred, pick_array)
 
         if self.baseline is not None and self.baseline_scores is None:
             config, model, reorder = self.baseline
             model.to(x.device)
             with torch.no_grad():
                 baseline_pred = config.forward(model, x[:, reorder])
-            self._collect(BASELINE, config, model, baseline_pred, pick_array)
+            self._collect(BASELINE + loader, config, model, baseline_pred, pick_array)
 
     def _metrics(
         self, scores: dict[str, PickScores], include_static: bool
@@ -155,7 +156,8 @@ class EvaluationCallback(pl.Callback):
         metrics: dict[str, float] = {}
         prefixes: set[str] = set()
         for key, value in scores.items():
-            prefix = BASELINE if key.startswith(BASELINE) else ""
+            # "", "noisy/", "baseline/" or "baseline/noisy/"
+            prefix = key.rpartition("/")[0] + "/" if "/" in key else ""
             family = key.removeprefix(prefix).split("_")[0]
             prefixes.add(prefix)
             tolerances = det_tolerances if family == "det" else pick_tolerances
@@ -191,7 +193,7 @@ class EvaluationCallback(pl.Callback):
             }
             metrics |= self._metrics(self.baseline_scores, include_static=True)
         self.first_epoch_logged = True
-        pl_module.log_dict(metrics)
+        pl_module.log_dict(metrics, add_dataloader_idx=False)
         self.thresholds[trainer.current_epoch] = {
             phase: metrics[f"det_{phase}/threshold"] for phase in PHASES
         }

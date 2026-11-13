@@ -193,6 +193,17 @@ configs in `~/sbt-runs/deeplowfrequency/configs-v2/`. Best epochs:
   threshold (0.22); sigma 0.2 s is ahead (+0.006 over the defaults' mean)
   at 100 Hz and at 50 Hz (+0.007).
 
+Real noise stays a default (it is expected to generalize and harden the
+model). To measure that, every run now also validates on the dev windows
+with real noise from the dev split's own noise traces added (noise peak
+0.5-1 times the signal peak, seeded per trace; `noisy/det/f1_mean`).
+`real_noise` gained a `level`: `peak` (ours, noise peak uniform 0-1 times
+the window peak) or `std` (the dlf-catalog reference: noise std
+log-uniform 0.1-2 times the window std over the non-zero channels).
+Missing (all-zero) components get no noise in either. `channel_dropout`
+0.2 joined the default steps, after the noise. Experiment
+`deeplowfrequency/PhaseNet-noise-sigma` compares them.
+
 Open: sigma 0.2 s with more seeds and sigma 0.3-0.4 s (also at 50 Hz,
 to separate width in seconds from width in samples); `real_noise`
 evaluated on noisier data than its own validation split.

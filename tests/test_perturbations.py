@@ -15,13 +15,15 @@ from seisbench_trainer.data.perturbations import (
     AddGap,
     ChannelDropout,
     GaussianNoise,
+    PeakLevel,
     RealNoise,
     RotateHorizontal,
     Sometimes,
+    StdLevel,
 )
 from seisbench_trainer.data.phases import Augmentation, StateDict
+from seisbench_trainer.data.steps import PeakRatio, StdRatio, StepContext
 from seisbench_trainer.data.steps import RealNoise as RealNoiseStep
-from seisbench_trainer.data.steps import StepContext
 
 N_SAMPLES = 3001
 PICK = {"trace_P_arrival_sample": 1000.0}
@@ -131,7 +133,8 @@ def train_split(synthetic_path: Path) -> sbd.WaveformDataset:
 def test_real_noise_uses_noise_traces_of_the_train_split(synthetic_path: Path) -> None:
     train = train_split(synthetic_path)
     context = StepContext(100.0, N_SAMPLES, "ZNE", train)
-    gate = RealNoiseStep(probability=1.0, scale=(0.5, 0.5)).build(context)
+    level = PeakRatio(ratio=(0.5, 0.5))
+    gate = RealNoiseStep(probability=1.0, level=level).build(context)
     assert isinstance(gate, Sometimes)
     noise = gate.augmentation
     assert isinstance(noise, RealNoise)
@@ -151,8 +154,8 @@ def test_real_noise_uses_noise_traces_of_the_train_split(synthetic_path: Path) -
 
 def test_real_noise_rotates_the_noise_horizontals(synthetic_path: Path) -> None:
     train = train_split(synthetic_path)
-    rotated = RealNoise(train, N_SAMPLES, 0.5, 0.5, "ZNE")
-    plain = RealNoise(train, N_SAMPLES, 0.5, 0.5, "Z")  # no horizontals: as is
+    rotated = RealNoise(train, N_SAMPLES, PeakLevel(0.5, 0.5), "ZNE")
+    plain = RealNoise(train, N_SAMPLES, PeakLevel(0.5, 0.5), "Z")  # not rotated
     x = waveforms()
     for seed in range(5):
         # the noise trace and offset are drawn before the angle: same window
@@ -172,7 +175,9 @@ def test_real_noise_rotates_the_noise_horizontals(synthetic_path: Path) -> None:
 
 
 def test_real_noise_leaves_windows_without_picks(synthetic_path: Path) -> None:
-    noise = RealNoise(train_split(synthetic_path), N_SAMPLES, 0.5, 0.5, "ZNE")
+    noise = RealNoise(
+        train_split(synthetic_path), N_SAMPLES, PeakLevel(0.5, 0.5), "ZNE"
+    )
     x = waveforms()
     outside = {"trace_P_arrival_sample": -5.0, "trace_S_arrival_sample": np.nan}
     for metadata in (None, {}, outside, {"trace_S_arrival_sample": N_SAMPLES}):
@@ -186,7 +191,7 @@ def test_real_noise_excludes_short_traces(synthetic_path: Path) -> None:
     train = train_split(synthetic_path)
     too_long = 10 * 6000  # longer than every synthetic trace (60 s)
     with pytest.raises(ValueError, match="no noise trace"):
-        RealNoise(train, too_long, 0.0, 1.0, "ZNE")
+        RealNoise(train, too_long, PeakLevel(0.0, 1.0), "ZNE")
 
 
 @pytest.mark.parametrize(
@@ -199,4 +204,58 @@ def test_real_noise_without_noise_traces_adds_nothing(
     step = RealNoiseStep(probability=1.0, query=query).build(context)
     assert "selects no training traces" in caplog.text
     x = waveforms()
+    np.testing.assert_array_equal(apply(step, x, PICK)[0], x)
+
+
+def test_std_level_sets_the_std_ratio_without_zero_channels(
+    synthetic_path: Path,
+) -> None:
+    train = train_split(synthetic_path)
+    x = waveforms()
+    x[1] = 0  # a missing component
+    noise = RealNoise(train, N_SAMPLES, StdLevel(0.7, 0.7), "ZNE")
+    out, _ = apply(noise, x, PICK)
+    added = out - x
+    assert not added[1].any()  # the missing component stays missing
+    live = [0, 2]
+    ratio = added[live].std() / x[live].std()
+    assert ratio == pytest.approx(0.7, rel=1e-3)
+
+
+def test_peak_level_leaves_zero_channels_alone(synthetic_path: Path) -> None:
+    noise = RealNoise(
+        train_split(synthetic_path), N_SAMPLES, PeakLevel(0.5, 0.5), "ZNE"
+    )
+    x = waveforms()
+    x[2] = 0
+    out, _ = apply(noise, x, PICK)
+    assert not out[2].any()
+
+
+def test_std_ratio_is_log_uniform() -> None:
+    level = StdRatio().build()
+    rng = np.random.RandomState(0)
+    draws = np.array(
+        [
+            np.exp(rng.uniform(np.log(level.low), np.log(level.high)))
+            for _ in range(4000)
+        ]
+    )
+    assert draws.min() >= 0.1 and draws.max() <= 2.0
+    # log-uniform: the median is the geometric mean, sqrt(0.1 * 2) = 0.447
+    assert np.median(draws) == pytest.approx(np.sqrt(0.2), rel=0.05)
+    with pytest.raises(ValueError, match="low > 0"):
+        StdRatio(ratio=(0.0, 1.0))
+
+
+def test_real_noise_without_long_enough_traces_adds_nothing(
+    synthetic_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """60 s noise traces are 3000 samples at 50 Hz; a stretched model needs 3001."""
+    too_long = 10 * 6000
+    context = StepContext(100.0, too_long, "ZNE", train_split(synthetic_path))
+    step = RealNoiseStep(probability=1.0).build(context)
+    assert "no real noise is added to training windows" in caplog.text
+    x = np.zeros((3, too_long), dtype=np.float32)
+    x[0, 100] = 1.0
     np.testing.assert_array_equal(apply(step, x, PICK)[0], x)

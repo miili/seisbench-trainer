@@ -14,6 +14,7 @@ seeds per DataLoader worker. Each class lists where it deviates from its
 from __future__ import annotations
 
 from numbers import Real
+from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
     from seisbench_trainer.data.loaders import AnyDataset
 
 Waveforms = NDArray[Any]
+Random = ModuleType | np.random.RandomState
+"""``np.random`` (seeded per DataLoader worker) or a seeded ``RandomState``."""
 
 
 def _peak(x: Waveforms) -> float:
@@ -40,9 +43,9 @@ def _horizontals(component_order: str) -> tuple[int, int]:
     return component_order.index("N"), component_order.index("E")
 
 
-def _rotate(x: Waveforms, north: int, east: int) -> Waveforms:
+def _rotate(x: Waveforms, north: int, east: int, rng: Random = np.random) -> Waveforms:
     """A copy of ``x`` with N and E rotated by a random angle in [-pi, pi)."""
-    alpha = np.random.uniform(-np.pi, np.pi)
+    alpha = rng.uniform(-np.pi, np.pi)
     n, e = x[north], x[east]
     x = x.copy()
     x[north] = n * np.cos(alpha) - e * np.sin(alpha)
@@ -166,50 +169,105 @@ class RotateHorizontal:
         state_dict["X"] = (_rotate(x, self.north, self.east), metadata)
 
 
+class NoUsableNoise(ValueError):
+    """No noise trace is long enough for the window, finite and not flat."""
+
+
+class PeakLevel:
+    """Noise peak = ``ratio`` times the waveform peak; ``ratio`` uniform.
+
+    seisbench's ``scaling_type="peak"``. Peaks are over all channels.
+    """
+
+    def __init__(self, low: float, high: float) -> None:
+        self.low = low
+        self.high = high
+
+    def factor(self, x: Waveforms, noise: Waveforms, rng: Random) -> float:
+        """Scale for the demeaned ``noise`` window added to ``x``."""
+        noise_peak = _peak(noise)
+        if noise_peak == 0:
+            return 0.0
+        return rng.uniform(self.low, self.high) * _peak(x) / noise_peak
+
+
+def _std(x: Waveforms) -> float:
+    """Standard deviation of the demeaned channels, pooled over channels."""
+    return float(np.sqrt(np.mean((x - x.mean(axis=-1, keepdims=True)) ** 2)))
+
+
+class StdLevel:
+    """Noise std = ``ratio`` times the waveform std; ``ratio`` log-uniform.
+
+    The dlf-catalog reference recipe (ratio 0.1 to 2). The std is pooled over
+    the channels that are not all zero (missing components).
+    """
+
+    def __init__(self, low: float, high: float) -> None:
+        self.low = low
+        self.high = high
+
+    def factor(self, x: Waveforms, noise: Waveforms, rng: Random) -> float:
+        """Scale for the demeaned ``noise`` window added to ``x``."""
+        live = x.any(axis=-1)
+        if not live.any():
+            return 0.0
+        noise_std = _std(noise[live])
+        if noise_std == 0:
+            return 0.0
+        ratio = float(np.exp(rng.uniform(np.log(self.low), np.log(self.high))))
+        return ratio * _std(x[live]) / noise_std
+
+
+NoiseLevel = PeakLevel | StdLevel
+
+
 class RealNoise:
     """Add a random window of a recorded noise trace, horizontals rotated.
 
     The noise window's N and E channels are rotated by a random angle (as
     ``RotateHorizontal``), so one noise recording gives many horizontal
     noise fields; without N and E in ``component_order`` it is not rotated.
-    The window is then demeaned and scaled so that its peak is ``scale``
-    times the waveform peak; ``scale`` is drawn uniformly from (``low``,
-    ``high``). This is seisbench's ``scaling_type="peak"``. Differences:
+    The window is then demeaned and scaled by ``level`` (``PeakLevel``:
+    seisbench's ``scaling_type="peak"``; ``StdLevel``: the dlf-catalog
+    reference). Channels of the waveform that are all zero (missing
+    components, dropped channels) get no noise: they stay missing. Differences:
     noise traces shorter than the window, without signal or with non-finite
     samples are excluded once,
     here, where seisbench raises in the middle of training or divides by zero
     (NaN waveforms); a noise window that is all zeros is skipped. The noise
     traces must have the run's component order and sampling rate, which holds
-    when they come from the training split.
+    when they come from a split of the run.
 
     Windows without a pick are left as they are (seisbench adds noise to
     every window): the noise is there to lower the SNR of picks, and noise
     added to noise (noise traces, pick-free crops) teaches nothing the noise
     traces do not. ``probability`` is then the chance per window with a pick.
+
+    ``rng`` is ``np.random`` in training; the noisy validation passes a
+    ``RandomState`` seeded per trace, so its windows are the same every epoch.
     """
 
     def __init__(
         self,
         noise: AnyDataset,
         window_samples: int,
-        low: float,
-        high: float,
+        level: NoiseLevel,
         component_order: str,
     ) -> None:
         self.noise = noise
+        self.level = level
         self.horizontals = (
             _horizontals(component_order) if set("NE") <= set(component_order) else None
         )
         self.window_samples = window_samples
-        self.low = low
-        self.high = high
         self.indices = [
             index
             for index in range(len(noise))
             if self._usable(noise.get_sample(index)[0])
         ]
         if not self.indices:
-            raise ValueError(
+            raise NoUsableNoise(
                 f"no noise trace with at least {window_samples} finite samples "
                 "and signal"
             )
@@ -221,19 +279,18 @@ class RealNoise:
             and _peak(waveforms) > 0
         )
 
-    def __call__(self, state_dict: StateDict) -> None:
+    def __call__(self, state_dict: StateDict, rng: Random = np.random) -> None:
         x, metadata = state_dict["X"]
         if not _has_pick(metadata, x.shape[-1]):
             return
-        trace, _ = self.noise.get_sample(int(np.random.choice(self.indices)))
-        start = np.random.randint(0, trace.shape[-1] - x.shape[-1] + 1)
+        trace, _ = self.noise.get_sample(int(rng.choice(self.indices)))
+        start = rng.randint(0, trace.shape[-1] - x.shape[-1] + 1)
         window = trace[:, start : start + x.shape[-1]]
         if self.horizontals is not None:
-            window = _rotate(window, *self.horizontals)
+            window = _rotate(window, *self.horizontals, rng)
         window = window - window.mean(axis=-1, keepdims=True)
-        noise_peak = _peak(window)
-        if noise_peak == 0:
+        window[~x.any(axis=-1)] = 0  # missing components stay missing
+        factor = self.level.factor(x, window, rng)
+        if factor == 0:
             return
-        level = np.random.uniform(self.low, self.high) * _peak(x)
-        noise = (window * (level / noise_peak)).astype(x.dtype)
-        state_dict["X"] = (x + noise, metadata)
+        state_dict["X"] = (x + (window * factor).astype(x.dtype), metadata)

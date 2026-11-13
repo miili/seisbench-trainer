@@ -15,6 +15,7 @@ from pydantic import (
 
 from seisbench_trainer.data.sources import DatasetConfig, SeisBenchDataset
 from seisbench_trainer.data.steps import (
+    ChannelDropout,
     PickWindow,
     RandomWindow,
     RealNoise,
@@ -69,13 +70,16 @@ class DataConfig(StrictModel):
 
 def _default_train_steps() -> list[TrainStep]:
     # pick-benchmark PhaseNet recipe: 2/3 pick context window, then the crop;
-    # then half the windows rotated, and real noise on half the pick windows
-    # (a no-op for datasets without noise traces)
+    # then half the windows rotated, real noise on half the pick windows (a
+    # no-op for datasets without noise traces), and channels dropped from a
+    # fifth of the windows (a missing component, after the noise: it stays
+    # silent)
     return [
         PickWindow(probability=2 / 3),
         RandomWindow(),
         RotateHorizontal(probability=0.5),
         RealNoise(probability=0.5),
+        ChannelDropout(probability=0.2),
     ]
 
 

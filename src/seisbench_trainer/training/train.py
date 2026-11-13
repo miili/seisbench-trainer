@@ -129,6 +129,28 @@ def train(
         shuffle=False,
     )
 
+    dev_loaders = [dev_loader]
+    noisy = config.evaluation.noisy_validation
+    noise = (
+        None
+        if noisy is None
+        else noisy.build(splits.dev, window, config.data.component_order)
+    )
+    if noise is not None:
+        dev_loaders.append(
+            make_loader(
+                splits.dev,
+                [
+                    *eval_augmentations(
+                        augmentation, window, config.training.seed, noise
+                    ),
+                    *labels,
+                ],
+                config.data,
+                shuffle=False,
+            )
+        )
+
     set_experiment(experiment_name(config))
     with mlflow.start_run(
         run_name=config.tracking.run_name,
@@ -159,7 +181,7 @@ def train(
             callbacks=[*_callbacks(config, evaluation, checkpoint), *callbacks],
             log_every_n_steps=min(50, len(train_loader)),
         )
-        trainer.fit(module, train_loader, dev_loader)
+        trainer.fit(module, train_loader, dev_loaders)
         mlflow.flush_async_logging()
 
         # Lightning types this attribute loosely; it is the checkpoint path.

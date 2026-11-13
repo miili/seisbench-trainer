@@ -149,6 +149,11 @@ Known defects and limits in the reference code. Fix these when porting:
 - Metric names follow `{family}_{phase}/{name}` (`pick_P/mae_s`,
   `det_S/f1`), and `det/f1_mean` is the mean of the P and S F1. Baseline
   metrics use the prefix `baseline/`, so they form one dashboard section.
+  The noisy validation (the dev windows with the dev split's real noise
+  added, `evaluation.noisy_validation`) uses `noisy/` and
+  `baseline/noisy/`; it is a second validation loader, so log with
+  `add_dataloader_idx=False` to keep the names free of Lightning's
+  `/dataloader_idx_N` suffix.
   Test metrics are `test_…` and `baseline/test_…`. Keep this scheme; the
   CLI table and `training.monitor` (a `Literal` of these names; its
   min/max direction follows from the name) rely on it.

@@ -11,6 +11,9 @@ from seisbench_trainer.config import TrainConfig
 from seisbench_trainer.data.loaders import Batch
 from seisbench_trainer.units import seconds_to_samples
 
+NOISY = "noisy/"
+"""Prefix of the noisy-validation metrics (second validation loader)."""
+
 
 class PickerModule(pl.LightningModule):
     """Training and validation steps. Model specifics come from the model config."""
@@ -46,10 +49,18 @@ class PickerModule(pl.LightningModule):
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
-    def validation_step(self, batch: Batch, batch_idx: int) -> dict[str, Tensor]:
+    def validation_step(
+        self, batch: Batch, batch_idx: int, dataloader_idx: int = 0
+    ) -> dict[str, Tensor]:
         logits = self.config.model.forward_logits(self.model, batch["X"])
         loss = self.loss(logits, batch)
-        self.log("val_loss", loss, prog_bar=True)
+        clean = dataloader_idx == 0
+        self.log(
+            "val_loss" if clean else f"{NOISY}val_loss",
+            loss,
+            prog_bar=clean,
+            add_dataloader_idx=False,
+        )
         return {"loss": loss, "pred": self.config.model.activate(logits)}
 
     def configure_optimizers(self) -> OptimizerLRScheduler:

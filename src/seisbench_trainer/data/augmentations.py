@@ -13,6 +13,7 @@ import numpy as np
 import seisbench.generate as sbg
 
 from seisbench_trainer.data.config import AugmentationConfig
+from seisbench_trainer.data.perturbations import RealNoise
 from seisbench_trainer.data.phases import (
     PHASE_COLUMNS,
     PHASES,
@@ -77,6 +78,23 @@ class ZeroNonFinite:
             state_dict["X"] = (x, metadata)
 
 
+class SeededRealNoise:
+    """``RealNoise`` with a random state that depends only on seed and trace.
+
+    The noisy validation windows are then identical in every epoch and run.
+    """
+
+    def __init__(self, noise: RealNoise, seed: int) -> None:
+        self.noise = noise
+        self.seed = seed
+
+    def __call__(self, state_dict: StateDict) -> None:
+        metadata = state_dict["X"][1] or {}
+        name = str(metadata.get("trace_name", ""))
+        rng = np.random.RandomState([self.seed, zlib.crc32(name.encode()), 1])
+        self.noise(state_dict, rng)
+
+
 class PickSamples:
     """Add key ``pick_samples``: the pick positions in the window per phase.
 
@@ -122,12 +140,19 @@ def train_augmentations(
 
 
 def eval_augmentations(
-    config: AugmentationConfig, window_samples: int, seed: int
+    config: AugmentationConfig,
+    window_samples: int,
+    seed: int,
+    noise: RealNoise | None = None,
 ) -> list[Augmentation]:
-    """Deterministic windows for validation and test, plus ``pick_samples``."""
+    """Deterministic windows for validation and test, plus ``pick_samples``.
+
+    With ``noise``, real noise is added to each window, seeded per trace.
+    """
     return [
         ZeroNonFinite(),
         SeededPickWindow(window_samples, seed),
+        *([SeededRealNoise(noise, seed)] if noise is not None else []),
         *_normalize(config),
         PickSamples(window_samples),
     ]

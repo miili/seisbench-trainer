@@ -185,6 +185,81 @@ def _unchanged(state_dict: StateDict) -> None:
     """Leave the sample as it is."""
 
 
+def _real_noise(
+    dataset: AnyDataset,
+    query: str,
+    split: str,
+    window_samples: int,
+    level: perturbations.NoiseLevel,
+    component_order: str,
+) -> perturbations.RealNoise | None:
+    """Real noise from the ``query`` traces of ``dataset``; None and a warning
+    if there are none, or none as long as the window.
+
+    real_noise and the noisy validation are defaults: datasets without noise
+    traces (BohemiaSaxony, ETHZ), or with noise traces shorter than the model
+    input (60 s traces decimated for a time-stretched model), run without
+    them instead of failing.
+    """
+    noise = _noise_traces(dataset, query, split)
+    if noise is None:
+        return None
+    try:
+        return perturbations.RealNoise(noise, window_samples, level, component_order)
+    except perturbations.NoUsableNoise as error:
+        logger.warning("%s; no real noise is added to %s windows", error, split)
+        return None
+
+
+def _noise_traces(dataset: AnyDataset, query: str, split: str) -> AnyDataset | None:
+    """The traces of ``dataset`` that match ``query``; None (and a warning) if none."""
+    try:
+        mask = query_mask(dataset.metadata, query)
+    except pd.errors.UndefinedVariableError:  # e.g. no trace_category column
+        mask = None
+    if mask is None or not mask.any():
+        logger.warning(
+            "noise query %r selects no %s traces; no real noise is added",
+            query,
+            split,
+        )
+        return None
+    return dataset.filter(mask, inplace=False)
+
+
+class PeakRatio(StrictModel):
+    """Noise peak = ``ratio`` times the window's absolute peak (seisbench's
+    ``scaling_type="peak"``); ``ratio`` drawn uniformly. Peaks are over all
+    channels, so the ratio depends on how impulsive the event is."""
+
+    type: Literal["peak"] = "peak"
+    ratio: Range = (0.0, 1.0)
+
+    def build(self) -> perturbations.PeakLevel:
+        return perturbations.PeakLevel(*self.ratio)
+
+
+class StdRatio(StrictModel):
+    """Noise std = ``ratio`` times the window's std, ``ratio`` drawn
+    log-uniformly (uniform in dB); all-zero channels are left out of the std.
+    The dlf-catalog reference recipe: ratio 0.1 to 2."""
+
+    type: Literal["std"] = "std"
+    ratio: Range = (0.1, 2.0)
+
+    @model_validator(mode="after")
+    def _positive(self) -> Self:
+        if self.ratio[0] <= 0:
+            raise ValueError("a log-uniform ratio needs low > 0")
+        return self
+
+    def build(self) -> perturbations.StdLevel:
+        return perturbations.StdLevel(*self.ratio)
+
+
+NoiseLevel = Annotated[PeakRatio | StdRatio, Field(discriminator="type")]
+
+
 class RealNoise(RandomStep):
     """Add a random window of a recorded noise trace from the training split.
 
@@ -201,29 +276,57 @@ class RealNoise(RandomStep):
         description="Pandas query on the training split metadata that selects "
         "the noise traces. Dev and test traces are never used.",
     )
-    scale: Range = Field(
-        default=(0.0, 1.0),
-        description="Noise peak relative to the absolute peak of the waveform.",
+    level: NoiseLevel = Field(
+        default_factory=PeakRatio,
+        description="How loud the noise is relative to the window: 'peak' "
+        "(noise peak 0-1 times the window peak) or 'std' (the dlf-catalog "
+        "reference: noise std 0.1-2 times the window std, log-uniform).",
     )
 
     def build_step(self, context: StepContext) -> Augmentation:
-        try:
-            mask = query_mask(context.train.metadata, self.query)
-        except pd.errors.UndefinedVariableError:  # e.g. no trace_category
-            mask = None
-        if mask is None or not mask.any():
-            # real_noise is a default step: datasets without noise traces
-            # (BohemiaSaxony, ETHZ) train without it instead of failing
-            logger.warning(
-                "real_noise query %r selects no training traces; no real noise "
-                "is added",
-                self.query,
-            )
-            return _unchanged
-        noise = context.train.filter(mask, inplace=False)
-        assert noise is not None
-        return perturbations.RealNoise(
-            noise, context.window_samples, *self.scale, context.component_order
+        noise = _real_noise(
+            context.train,
+            self.query,
+            "training",
+            context.window_samples,
+            self.level.build(),
+            context.component_order,
+        )
+        return _unchanged if noise is None else noise
+
+
+class NoisyValidation(StrictModel):
+    """A second validation pass: the same dev windows with real noise added.
+
+    The noise comes from the dev split's own noise traces, which training
+    never sees, and is added as by ``real_noise`` (horizontals rotated, only
+    to windows with a pick), seeded per trace: every epoch and every run with
+    the same seed gets the same noisy windows. Its metrics carry the prefix
+    ``noisy/``; model selection and thresholds stay on the clean windows.
+    """
+
+    query: str = Field(
+        default='trace_category == "noise"',
+        description="Pandas query on the dev split metadata that selects the "
+        "noise traces. Without matches the noisy validation is skipped.",
+    )
+    level: NoiseLevel = Field(
+        default_factory=lambda: PeakRatio(ratio=(0.5, 1.0)),
+        description="Noise level, drawn per trace. Default: noise peak 0.5-1 "
+        "times the window peak, the harder half of real_noise's default.",
+    )
+
+    def build(
+        self, dev: AnyDataset, window_samples: int, component_order: str
+    ) -> perturbations.RealNoise | None:
+        """The noise augmentation, or None if the dev split has no noise traces."""
+        return _real_noise(
+            dev,
+            self.query,
+            "dev",
+            window_samples,
+            self.level.build(),
+            component_order,
         )
 
 

@@ -162,6 +162,7 @@ def test_train_with_baseline_and_detection_selection(
     assert "best_det/f1_mean" in metrics
     baseline = {"baseline/det_P/f1", "baseline/pick_S/mae_s", "baseline/det/f1_mean"}
     assert baseline <= set(metrics)
+    assert {"baseline/noisy/det/f1_mean", "noisy/det/f1_mean"} <= set(metrics)
     # the fixed baseline is evaluated and logged once; the model every epoch
     assert len(client.get_metric_history(run_id, "baseline/det_P/f1")) == 1
     assert len(client.get_metric_history(run_id, "det_P/f1")) == 2
@@ -220,3 +221,25 @@ def test_concurrent_first_runs_share_the_oldest_experiment(
         assert tracking_run.set_experiment("other") not in (first, twin_id)
     finally:
         mlflow.set_tracking_uri(previous)
+
+
+def test_noisy_validation_metrics(
+    synthetic_path: Path, tmp_path: Path, tracking_uri: str
+) -> None:
+    client = MlflowClient()
+    config = small_config(synthetic_path, tmp_path, epochs=1)
+    metrics = client.get_run(train(config)).data.metrics
+    noisy = {"noisy/val_loss", "noisy/det_P/f1", "noisy/pick_S/mae_s"}
+    assert noisy | {"noisy/det/f1_mean", "val_loss", "det/f1_mean"} <= set(metrics)
+    assert not any("dataloader_idx" in key for key in metrics)
+    # the clean windows still select the model
+    assert metrics["best_det/f1_mean"] == metrics["det/f1_mean"]
+
+    disabled = small_config(
+        synthetic_path,
+        tmp_path,
+        epochs=1,
+        evaluation={"baseline": None, "noisy_validation": None},
+    )
+    metrics = client.get_run(train(disabled)).data.metrics
+    assert not any(key.startswith("noisy/") for key in metrics)

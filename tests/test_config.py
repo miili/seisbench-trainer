@@ -166,7 +166,25 @@ def test_cosine_needs_a_fixed_length() -> None:
             "greater_than_equal",
         ),
         (
-            {"augmentation": {"train": [CROP, NOISE | {"scale": [0.5, 0.1]}]}},
+            {
+                "augmentation": {
+                    "train": [
+                        CROP,
+                        NOISE | {"level": {"type": "peak", "ratio": [0.5, 0.1]}},
+                    ]
+                }
+            },
+            "value_error",
+        ),
+        (
+            {
+                "augmentation": {
+                    "train": [
+                        CROP,
+                        NOISE | {"level": {"type": "std", "ratio": [0.0, 2.0]}},
+                    ]
+                }
+            },
             "value_error",
         ),
         ({"augmentation": {"train": [{"type": "pick_window"}, CROP]}}, "missing"),

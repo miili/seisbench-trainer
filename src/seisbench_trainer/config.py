@@ -17,6 +17,7 @@ from pydantic import (
 )
 
 from seisbench_trainer.data import AugmentationConfig, DataConfig
+from seisbench_trainer.data.steps import NoisyValidation
 from seisbench_trainer.hpo.config import HPOConfig, set_path
 from seisbench_trainer.models import ModelConfig, PhaseNetConfig
 from seisbench_trainer.schema import StrictModel
@@ -117,6 +118,12 @@ class EvaluationConfig(StrictModel):
         default_factory=lambda: PhaseNetConfig(pretrained="original"),
         description="Pretrained model evaluated alongside for comparison, fed "
         "in its own component order. None disables the baseline.",
+    )
+    noisy_validation: NoisyValidation | None = Field(
+        default_factory=NoisyValidation,
+        description="Also validate on the dev windows with real noise from the "
+        "dev split's noise traces added (metrics 'noisy/...'). Skipped if the "
+        "dev split has no noise traces. None disables it.",
     )
     plot_every_n_epochs: NonNegativeInt = Field(
         default=1, description="0 disables the figures."
