@@ -155,6 +155,44 @@ default for robustness on noisy target data, which this validation split
 cannot measure; experiment `deeplowfrequency/PhaseNet-e2e-v2` reruns the
 suite on these defaults with the augmentations ablated.
 
+### The suite on the new defaults
+
+MLflow experiment `deeplowfrequency/PhaseNet-e2e-v2`, code `dbba5fd`
+(one experiment: the race fix held for 12 jobs started together),
+configs in `~/sbt-runs/deeplowfrequency/configs-v2/`. Best epochs:
+
+| run | epochs | det/f1_mean | F1 P / S | P thr | pick MAE P / S |
+| --- | --- | --- | --- | --- | --- |
+| defaults (rotate + real noise) | 24 | 0.820 | 0.847 / 0.793 | 0.35 | 0.149 / 0.209 s |
+| defaults, seed 43 | 46 | 0.826 | 0.850 / 0.802 | 0.38 | 0.148 / 0.206 s |
+| rotation only (no real noise) | 36 | 0.829 | 0.854 / 0.804 | 0.38 | 0.142 / 0.206 s |
+| real noise only (no rotation) | 44 | 0.824 | 0.851 / 0.798 | 0.35 | 0.148 / 0.209 s |
+| neither (the first suite's defaults) | 38 | **0.830** | 0.855 / 0.805 | 0.40 | 0.144 / 0.206 s |
+| lr 0.0005 | 35 | 0.823 | 0.849 / 0.797 | 0.38 | 0.147 / 0.209 s |
+| lr 0.01 | 44 | 0.821 | 0.845 / 0.797 | 0.38 | 0.148 / 0.210 s |
+| N weight 1 | 36 | 0.823 | 0.849 / 0.796 | 0.22 | 0.146 / 0.207 s |
+| label sigma 0.2 s | 34 | 0.829 | 0.853 / 0.805 | 0.47 | 0.150 / 0.210 s |
+| from scratch, lr 0.003 | 71 | 0.809 | 0.835 / 0.783 | 0.38 | 0.166 / 0.225 s |
+| 50 Hz, sigma 0.1 s | 48 | 0.798 | 0.830 / 0.767 | 0.38 | 0.151 / 0.213 s |
+| 50 Hz, sigma 0.2 s | 38 | 0.806 | 0.839 / 0.773 | 0.47 | 0.156 / 0.217 s |
+
+- Reproducible across the code changes: without the augmentations the
+  run scored 0.830, the first suite's defaults 0.829.
+- Rotation is neutral (0.829 against 0.830). Real noise costs about
+  0.006 validation F1 (defaults 0.820 and 0.826 over two seeds, real
+  noise alone 0.824), as in the first suite. The validation windows carry
+  no added noise, so this measures only the cost; the benefit on noisier
+  data is not measured yet.
+- With real noise the epoch-to-epoch F1 is noisier. Seed 42 set its
+  early-stopping reference at a high epoch 8 and stopped at epoch 24
+  after two LR halvings, still improving (0.8199 at the last epoch);
+  seed 43 ran 46 epochs. The two seeds differ by 0.006, three times the
+  noise without augmentation.
+- The other comparisons repeat the first suite under the new defaults:
+  lr 0.001 and 0.0005 tie, 0.01 is no better; N 1 ties on F1 with a lower
+  threshold (0.22); sigma 0.2 s is ahead (+0.006 over the defaults' mean)
+  at 100 Hz and at 50 Hz (+0.007).
+
 Open: sigma 0.2 s with more seeds and sigma 0.3-0.4 s (also at 50 Hz,
 to separate width in seconds from width in samples); `real_noise`
 evaluated on noisier data than its own validation split.
