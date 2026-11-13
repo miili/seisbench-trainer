@@ -204,6 +204,45 @@ Missing (all-zero) components get no noise in either. `channel_dropout`
 0.2 joined the default steps, after the noise. Experiment
 `deeplowfrequency/PhaseNet-noise-sigma` compares them.
 
+### Real noise on noisy validation; label sigma in seconds or samples
+
+MLflow experiment `deeplowfrequency/PhaseNet-noise-sigma`, code
+`c4d470c`, configs in `~/sbt-runs/deeplowfrequency/configs-v3/`. Defaults
+as above (rotate 0.5, real noise 0.5 `peak`, dropout 0.2, sigma 0.1 s).
+`noisy` is `noisy/det/f1_mean` at the epoch the clean F1 selected; the
+volpick baseline scores 0.807 clean and 0.585 noisy.
+
+| run (seeds 42 / 43) | det/f1_mean | noisy | pick MAE P |
+| --- | --- | --- | --- |
+| real noise `peak` (default) | 0.822 / 0.825 | **0.663 / 0.666** | 0.149 / 0.146 s |
+| real noise `std` (dlf-catalog) | 0.823 / 0.825 | 0.659 / 0.660 | 0.147 / 0.143 s |
+| no real noise | 0.829 / 0.830 | 0.601 / 0.604 | 0.143 / 0.141 s |
+| no dropout | 0.822 / 0.826 | 0.664 / 0.669 | 0.150 / 0.147 s |
+| no augmentation (seed 42) | 0.828 | 0.596 | 0.143 s |
+
+| label sigma | 100 Hz: F1, MAE P | 50 Hz: F1, MAE P |
+| --- | --- | --- |
+| 0.1 s | 0.824 (mean), 0.148 s (10 samples) | 0.796, 0.154 s (5 samples) |
+| 0.2 s | 0.828, 0.152 s (20 samples) | 0.806, 0.156 s (10 samples) |
+| 0.4 s | 0.832, 0.180 s (40 samples) | 0.809, 0.180 s (20 samples) |
+| 0.8 s | 0.725, 0.328 s (80 samples) | 0.717, 0.315 s (40 samples) |
+
+- **Real noise generalizes.** It gains 0.06 F1 on the noisy windows
+  (0.601 to 0.665) for 0.005 on the clean ones. It stays a default.
+- **`peak` and `std` scaling tie** on clean windows and are within 0.005
+  on the noisy ones, which are themselves peak-scaled (a small bias
+  towards `peak`). The default stays `peak`; `std` reproduces the
+  dlf-catalog reference.
+- **Channel dropout 0.2 is neutral** on both validations; neither has
+  dropped components, where it should help. It stays a default.
+- **Label sigma belongs in seconds.** The curves match in seconds at both
+  rates and not in samples: 0.2 s gains over 0.1 s, 0.4 s adds little F1
+  but costs 0.03 s pick MAE at both rates, and 0.8 s collapses at both
+  (40 samples is the best F1 at 100 Hz and a collapse at 50 Hz). The 50 Hz
+  gain of 0.2 s in the earlier suites is the better width in seconds, not
+  volpick's label width in samples. For deep low-frequency events 0.2 s is
+  the best trade-off (F1 +0.005, MAE unchanged).
+
 Open: sigma 0.2 s with more seeds and sigma 0.3-0.4 s (also at 50 Hz,
 to separate width in seconds from width in samples); `real_noise`
 evaluated on noisier data than its own validation split.
