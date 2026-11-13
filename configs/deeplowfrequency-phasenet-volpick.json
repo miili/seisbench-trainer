@@ -1,0 +1,34 @@
+{
+  "data": {
+    "datasets": [
+      {
+        "type": "local",
+        "path": "/home/isken/.seisbench/datasets/deeplowfrequency"
+      }
+    ],
+    "component_order": "ZNE",
+    "sampling_rate": 100.0,
+    "batch_size": 1024,
+    "num_workers": 16
+  },
+  "model": {
+    "type": "PhaseNet",
+    "pretrained": "volpick"
+  },
+  "augmentation": {},
+  "training": {
+    "accelerator": "gpu"
+  },
+  "evaluation": {
+    "baseline": {
+      "type": "PhaseNet",
+      "pretrained": "volpick"
+    },
+    "test_at_end": true
+  },
+  "tracking": {
+    "tags": {
+      "purpose": "final_training"
+    }
+  }
+}

@@ -90,6 +90,66 @@ scheduler (factor 0.5) and early stopping. Best-epoch scores:
   (about 40 min per BohemiaSaxony run). Plateau 3 with stop 10 is the
   faster option at about the same F1.
 
+## 2026-11-13: fine-tuning volpick on deeplowfrequency
+
+MLflow experiment `deeplowfrequency/PhaseNet-e2e` (two experiments of
+that name: the jobs raced to create it, fixed in `set_experiment`); code
+`7f12a62`; configs and `summary.py` in `~/sbt-runs/deeplowfrequency/`.
+Dataset: local `deeplowfrequency` (129,637 traces, 100 Hz, ZNE; 99.7k
+deep low-frequency event traces of about 120 s with the picks near 60 s,
+29.9k noise traces of 60 s; seisbench splits 90.5k / 13.3k / 25.9k).
+Fine-tuning `volpick` (ZNE, trained with lr 0.0005) with volpick as the
+baseline, every other setting the code default (Adam lr 0.001, N 0.5,
+sigma 0.1 s, plateau 5, stop 15, at most 100 epochs), one seed (42).
+12-23 min per run on one A40, about 20 s per epoch at 100 Hz.
+
+| run | epochs | det/f1_mean | F1 P / S | P thr | pick MAE P / S |
+| --- | --- | --- | --- | --- | --- |
+| volpick, no fine-tuning (100 Hz) | - | 0.807 | | | |
+| defaults | 36 | 0.829 | 0.854 / 0.805 | 0.38 | 0.145 / 0.205 s |
+| defaults, seed 43 | 43 | 0.829 | 0.855 / 0.804 | 0.38 | 0.139 / 0.205 s |
+| lr 0.0005 | 33 | 0.828 | 0.855 / 0.802 | 0.38 | 0.141 / 0.204 s |
+| lr 0.01 | 45 | 0.823 | 0.850 / 0.796 | 0.40 | 0.147 / 0.211 s |
+| N weight 1 | 33 | 0.829 | 0.853 / 0.804 | 0.25 | 0.144 / 0.204 s |
+| label sigma 0.2 s | 32 | **0.833** | 0.857 / 0.809 | 0.50 | 0.147 / 0.205 s |
+| `real_noise` p 0.5 | 44 | 0.824 | 0.849 / 0.798 | 0.32 | 0.149 / 0.209 s |
+| from scratch, lr 0.003 | 72 | 0.813 | 0.836 / 0.790 | 0.35 | 0.160 / 0.219 s |
+| volpick, no fine-tuning (50 Hz) | - | 0.712 | | | |
+| 50 Hz, sigma 0.1 s (5 samples) | 45 | 0.802 | 0.834 / 0.770 | 0.40 | 0.149 / 0.212 s |
+| 50 Hz, sigma 0.2 s (10 samples) | 29 | 0.808 | 0.837 / 0.778 | 0.50 | 0.154 / 0.215 s |
+
+- **The defaults hold.** Fine-tuning gains 0.023 over volpick and 0.017
+  over training from scratch. lr 0.001 and volpick's own 0.0005 tie;
+  0.01, our BohemiaSaxony fine-tuning rate, is 0.006 worse. N 0.5 ties
+  with N 1 on F1 and again lifts the best threshold (0.38 against 0.25).
+  The second seed matched the first within 0.0001.
+- **Label sigma 0.2 s** was the best run (+0.003, P precision 0.869
+  against 0.852 at equal recall; thresholds about 0.5). The onsets of
+  deep low-frequency events are emergent. One seed; confirm before it
+  becomes this dataset's setting. Not a global default.
+- **`real_noise`** (p 0.5, scale 0-1, horizontals rotated, pick windows
+  only) lowered validation F1 by 0.006. The validation windows carry no
+  added noise and the training split already has 21k real noise traces,
+  so this test cannot show a gain; it would show on noisier target data.
+- **50 Hz** (volpick time-stretched: 3001 samples are 60 s, so
+  `pick_window` is 120 s with 60 s before). A sigma in seconds halves
+  in samples at 50 Hz; keeping the 10 samples the 100 Hz model saw
+  (0.2 s) gained 0.006 over 0.1 s. Validation windows are 60 s instead of
+  30 s, so the F1 is not directly comparable with the 100 Hz rows.
+  Decimating on access makes an epoch about 50% slower.
+- **Data**: 275 traces store NaN samples (volpick_alaska 214,
+  volpick_cascade 61, all events): 239 a missing component as one NaN
+  channel, 36 all three channels NaN although `trace_completeness` is
+  about 1. Before `7f12a62` one NaN made the loss NaN and the run
+  exported a model with F1 0; non-finite samples are now set to zero and
+  a NaN loss stops the run. The 36 all-NaN traces (27 train) are blank
+  windows with pick labels; they should be removed from the dataset
+  (list: `~/sbt-runs/deeplowfrequency/nonfinite_traces.csv`).
+
+Open: sigma 0.2 s with more seeds and sigma 0.3-0.4 s (also at 50 Hz,
+to separate width in seconds from width in samples); `real_noise`
+evaluated on noisier data than its own validation split.
+
 ## Reference recipes
 
 - PhaseNet (Zhu & Beroza 2019, doi:10.1093/gji/ggy423): softmax

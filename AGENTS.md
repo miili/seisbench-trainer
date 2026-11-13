@@ -202,6 +202,13 @@ Known defects and limits in the reference code. Fix these when porting:
   Follow progress in the MLflow metrics (one `det/f1_mean` row per epoch).
 - With pandas 3, `Series.to_numpy()` can return read-only arrays; combine
   masks with `a = a | b`, not `a |= b`.
+- Jobs that start together and log to a new experiment race to create it
+  in the folder store; `tracking.run.set_experiment` then joins the oldest
+  experiment of that name, and the empty duplicates stay behind.
+- To run a worktree's code in jobs, export `PYTHONPATH=<worktree>/src` and
+  write its version metadata first, in the worktree:
+  `uv run --no-project --with setuptools --with setuptools-scm python -c "import setuptools; setuptools.setup()" egg_info`.
+  Without that step the jobs log the version of the main checkout's install.
 - Experiment findings that set defaults are in `docs/experiments.md`.
   Add new ones there, with the MLflow experiment and the commit.
 
