@@ -5,7 +5,9 @@ Inputs are the predicted probability curves ``probs`` of shape
 (traces, max_picks), NaN-padded and sorted per trace.
 
 Both functions return ``PickScores``: one residual and one score per true
-pick, plus the scores of the negative examples.
+pick, plus the scores of the negative examples. ``ignore`` (traces, samples)
+marks where a phase may arrive unread (``missing_picks="unread"``): no
+negative comes from there.
 """
 
 from __future__ import annotations
@@ -50,6 +52,7 @@ def pick_accuracy(
     picks: NDArray[np.floating],
     half_window: int,
     edge: int,
+    ignore: NDArray[np.bool_] | None = None,
 ) -> PickScores:
     """Window-based pick accuracy around the expected picks.
 
@@ -61,7 +64,8 @@ def pick_accuracy(
     the score is kept.
 
     Negatives: the maximum probability of each trace without any pick of this
-    phase, ignoring ``edge`` samples at both ends.
+    phase, ignoring ``edge`` samples at both ends and the ``ignore`` samples;
+    a trace with nothing left gives no negative.
     """
     n_traces, n_samples = probs.shape
     traces, positions = _flat_picks(picks)
@@ -97,7 +101,14 @@ def pick_accuracy(
     pick_free = np.ones(n_traces, dtype=bool)
     pick_free[traces] = False
     interior = probs[pick_free, edge : n_samples - edge]
-    negative = interior.max(axis=1) if interior.shape[1] else np.zeros(0)
+    if ignore is not None:
+        hidden = ignore[pick_free, edge : n_samples - edge]
+        interior = np.where(hidden, -np.inf, interior)
+    if interior.shape[1]:
+        negative = interior.max(axis=1)
+        negative = negative[np.isfinite(negative)]
+    else:
+        negative = np.zeros(0)
 
     return PickScores(
         residuals=residuals,
@@ -112,17 +123,20 @@ def detect_picks(
     min_height: float,
     min_distance: int,
     tolerance: int,
+    ignore: NDArray[np.bool_] | None = None,
 ) -> PickScores:
     """Label-free pick detection with one-to-one matching.
 
     Peaks are found over the whole trace (``find_peaks``). Each true pick, in
     order, takes the highest unused peak within ``tolerance``. Unmatched
-    peaks are false picks (negatives); unmatched true picks score 0.
+    peaks are false picks (negatives), unless ``ignore`` marks their sample;
+    unmatched true picks score 0.
     """
     residuals: list[float] = []
     scores: list[float] = []
     false_scores: list[float] = []
-    for trace, trace_picks in zip(probs, picks, strict=True):
+    hidden = np.zeros(probs.shape, dtype=bool) if ignore is None else ignore
+    for trace, trace_picks, trace_hidden in zip(probs, picks, hidden, strict=True):
         peaks, properties = find_peaks(
             trace, height=min_height, distance=max(1, min_distance)
         )
@@ -138,7 +152,7 @@ def detect_picks(
             else:
                 residuals.append(np.nan)
                 scores.append(0.0)
-        false_scores.extend(heights[~used].tolist())
+        false_scores.extend(heights[~used & ~trace_hidden[peaks]].tolist())
     return PickScores(
         residuals=np.asarray(residuals, dtype=np.float64),
         scores=np.asarray(scores, dtype=np.float64),

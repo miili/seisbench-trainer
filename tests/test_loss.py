@@ -58,3 +58,24 @@ def test_weights_follow_labels() -> None:
 def test_unknown_weight_label() -> None:
     with pytest.raises(ValueError, match=r"unknown labels \['D'\]"):
         CrossEntropyLoss(weights={"D": 1.0}).build("PSN")
+
+
+def test_label_mask_leaves_unread_samples_out() -> None:
+    import torch
+
+    from seisbench_trainer.models.loss import CrossEntropyLoss
+
+    loss = CrossEntropyLoss(weights={}).build("PSN")
+    torch.manual_seed(0)
+    logits = torch.randn(2, 3, 50)
+    y = torch.softmax(torch.randn(2, 3, 50), dim=1)
+    mask = torch.ones(2, 2, 50)
+    mask[0, 0, :20] = 0  # P may be unread in the first 20 samples of trace 0
+    base = loss(logits, {"y": y, "label_mask": mask})
+    changed = logits.clone()
+    changed[0, :, :20] = 100.0  # anything in the masked samples
+    assert loss(changed, {"y": y, "label_mask": mask}) == pytest.approx(base.item())
+    assert loss(changed, {"y": y}) != pytest.approx(base.item())
+    assert loss(logits, {"y": y, "label_mask": torch.ones(2, 2, 50)}) == pytest.approx(
+        loss(logits, {"y": y}).item()
+    )

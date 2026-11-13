@@ -20,7 +20,8 @@ from seisbench_trainer.data.phases import (
     Augmentation,
     StateDict,
 )
-from seisbench_trainer.data.steps import StepContext
+from seisbench_trainer.data.steps import RandomWindow, StepContext
+from seisbench_trainer.units import seconds_to_samples
 
 
 def _pick_values(metadata: dict[str, Any], columns: list[str]) -> list[float]:
@@ -95,6 +96,42 @@ class SeededRealNoise:
         self.noise(state_dict, rng)
 
 
+class UnreadPhaseMask:
+    """Add key ``label_mask``: 0 where a phase may arrive unread, else 1.
+
+    Shape ``(len(PHASES), samples)``, float32, row order ``PHASES``. If a trace
+    has S but no P pick, P lies before its first S: row P is 0 up to that S
+    minus ``margin``. If it has P but no S, row S is 0 from its first P plus
+    ``margin``. Pick positions are window-relative, so this runs right after
+    the windows, before perturbations that remove picks (``add_gap``). With
+    ``enabled=False`` (``missing_picks="absent"``) the mask is all ones.
+    """
+
+    def __init__(self, margin: int, enabled: bool = True) -> None:
+        self.margin = margin
+        self.enabled = enabled
+
+    def __call__(self, state_dict: StateDict) -> None:
+        x, metadata = state_dict["X"]
+        n_samples = x.shape[-1]
+        mask = np.ones((len(PHASES), n_samples), dtype=np.float32)
+        if self.enabled:
+            first: dict[str, float] = {}
+            for phase in PHASES:
+                columns = [c for c, p in PHASE_COLUMNS.items() if p == phase]
+                picks = _pick_values(metadata or {}, columns)
+                if picks:
+                    first[phase] = min(picks)
+            p_index, s_index = PHASES.index("P"), PHASES.index("S")
+            if "S" in first and "P" not in first:
+                end = int(np.clip(first["S"] - self.margin, 0, n_samples))
+                mask[p_index, :end] = 0
+            elif "P" in first and "S" not in first:
+                start = int(np.clip(first["P"] + self.margin, 0, n_samples))
+                mask[s_index, start:] = 0
+        state_dict["label_mask"] = (mask, None)
+
+
 class PickSamples:
     """Add key ``pick_samples``: the pick positions in the window per phase.
 
@@ -128,30 +165,42 @@ def _normalize(config: AugmentationConfig) -> list[Augmentation]:
     ]
 
 
+def _unread_mask(config: AugmentationConfig, sampling_rate: float) -> UnreadPhaseMask:
+    sigma = seconds_to_samples(config.label_sigma_s, sampling_rate)
+    return UnreadPhaseMask(3 * sigma, enabled=config.missing_picks == "unread")
+
+
 def train_augmentations(
     config: AugmentationConfig, context: StepContext
 ) -> list[Augmentation]:
-    """The configured training steps, then normalization."""
-    return [
-        ZeroNonFinite(),
-        *(step.build(context) for step in config.train),
-        *_normalize(config),
-    ]
+    """The configured training steps, then normalization.
+
+    The ``label_mask`` is computed right after the ``random_window`` crop.
+    """
+    steps: list[Augmentation] = [ZeroNonFinite()]
+    for step in config.train:
+        steps.append(step.build(context))
+        if isinstance(step, RandomWindow):
+            steps.append(_unread_mask(config, context.sampling_rate))
+    return [*steps, *_normalize(config)]
 
 
 def eval_augmentations(
     config: AugmentationConfig,
     window_samples: int,
     seed: int,
+    sampling_rate: float,
     noise: RealNoise | None = None,
 ) -> list[Augmentation]:
-    """Deterministic windows for validation and test, plus ``pick_samples``.
+    """Deterministic windows for validation and test, plus ``pick_samples``
+    and ``label_mask``.
 
     With ``noise``, real noise is added to each window, seeded per trace.
     """
     return [
         ZeroNonFinite(),
         SeededPickWindow(window_samples, seed),
+        _unread_mask(config, sampling_rate),
         *([SeededRealNoise(noise, seed)] if noise is not None else []),
         *_normalize(config),
         PickSamples(window_samples),

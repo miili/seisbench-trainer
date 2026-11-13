@@ -124,7 +124,12 @@ def train(
     )
     dev_loader = make_loader(
         splits.dev,
-        [*eval_augmentations(augmentation, window, config.training.seed), *labels],
+        [
+            *eval_augmentations(
+                augmentation, window, config.training.seed, sampling_rate
+            ),
+            *labels,
+        ],
         config.data,
         shuffle=False,
     )
@@ -142,7 +147,7 @@ def train(
                 splits.dev,
                 [
                     *eval_augmentations(
-                        augmentation, window, config.training.seed, noise
+                        augmentation, window, config.training.seed, sampling_rate, noise
                     ),
                     *labels,
                 ],

@@ -97,14 +97,16 @@ class EvaluationCallback(pl.Callback):
         model: sbm.WaveformModel,
         pred: Tensor,
         picks: NDArray[np.float32],
+        unread: NDArray[np.bool_],
     ) -> None:
         evaluation = self.config.evaluation
         curves = model_config.phase_probabilities(model, pred)
         for phase_index, phase in enumerate(PHASES):
             probs = curves[phase].detach().float().cpu().numpy()
             phase_picks = picks[:, phase_index]
+            ignore = unread[:, phase_index]
             self.collected[f"{prefix}pick_{phase}"].append(
-                pick_accuracy(probs, phase_picks, self.half_window, self.edge)
+                pick_accuracy(probs, phase_picks, self.half_window, self.edge, ignore)
             )
             self.collected[f"{prefix}det_{phase}"].append(
                 detect_picks(
@@ -113,6 +115,7 @@ class EvaluationCallback(pl.Callback):
                     evaluation.min_peak_height,
                     self.min_distance,
                     self.tolerance,
+                    ignore,
                 )
             )
 
@@ -136,15 +139,22 @@ class EvaluationCallback(pl.Callback):
         assert isinstance(pred, Tensor)
         assert isinstance(x, Tensor) and isinstance(picks, Tensor)
         pick_array = picks.cpu().numpy()
+        label_mask = fields["label_mask"]
+        assert isinstance(label_mask, Tensor)
+        unread = label_mask.cpu().numpy() == 0
         loader = "" if dataloader_idx == 0 else NOISY
-        self._collect(loader, self.config.model, pl_module.model, pred, pick_array)
+        self._collect(
+            loader, self.config.model, pl_module.model, pred, pick_array, unread
+        )
 
         if self.baseline is not None and self.baseline_scores is None:
             config, model, reorder = self.baseline
             model.to(x.device)
             with torch.no_grad():
                 baseline_pred = config.forward(model, x[:, reorder])
-            self._collect(BASELINE + loader, config, model, baseline_pred, pick_array)
+            self._collect(
+                BASELINE + loader, config, model, baseline_pred, pick_array, unread
+            )
 
     def _metrics(
         self, scores: dict[str, PickScores], include_static: bool

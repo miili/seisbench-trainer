@@ -261,3 +261,26 @@ def test_slider_page_embeds_all_frames() -> None:
     embedded = json.loads(payload)
     assert [label for label, _ in embedded] == ["epoch 0", "epoch 1"]
     assert base64.b64decode(embedded[1][1]) == b"\x89PNG-b"
+
+
+def test_unread_region_gives_no_negatives() -> None:
+    from seisbench_trainer.metrics.picks import detect_picks, pick_accuracy
+
+    probs = np.zeros((2, 300))
+    probs[0, 50] = 0.9  # an unread P before the S of trace 0
+    probs[0, 200] = 0.8  # a false P after it
+    probs[1, 100] = 0.7  # a false P on a trace without any P
+    picks = np.full((2, 1), np.nan)
+    ignore = np.zeros((2, 300), dtype=bool)
+    ignore[0, :150] = True
+
+    found = detect_picks(probs, picks, 0.1, 10, 5)
+    assert sorted(found.negative_scores) == [0.7, 0.8, 0.9]
+    found = detect_picks(probs, picks, 0.1, 10, 5, ignore)
+    assert sorted(found.negative_scores) == [0.7, 0.8]
+
+    accuracy = pick_accuracy(probs, picks, 20, 0, ignore)
+    assert sorted(accuracy.negative_scores) == [0.7, 0.8]
+    ignore[1] = True  # nothing left of trace 1: no negative from it
+    accuracy = pick_accuracy(probs, picks, 20, 0, ignore)
+    assert accuracy.negative_scores.tolist() == [0.8]

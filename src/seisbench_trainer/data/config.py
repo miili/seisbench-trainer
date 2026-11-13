@@ -107,6 +107,20 @@ class AugmentationConfig(StrictModel):
         default=0.1, description="Width of the pick label curve."
     )
     label_shape: Literal["gaussian", "triangle", "box"] = "gaussian"
+    missing_picks: Literal["unread", "absent"] = Field(
+        default="unread",
+        description="What a missing P or S pick means on a trace that has a "
+        "pick of the other phase. 'unread' (as in the DLF v4b training): the "
+        "analyst did not read it, but the arrival may be there. Where it can "
+        "be, the training loss ignores all output channels and the validation "
+        "and test metrics ignore that phase's peaks: before the first S pick "
+        "if P is missing, after the first P pick if S is missing, each with a "
+        "margin of 3 label_sigma_s. Otherwise the model would learn 'no P' "
+        "before S on S-only traces (65 % of the Japan traces) and be scored "
+        "down for picking it. 'absent': a missing pick means no arrival; the "
+        "label is noise there and every peak of that phase is a false pick "
+        "(seisbench pick-benchmark). Traces without any pick are noise in both.",
+    )
 
     @model_validator(mode="after")
     def _windows_then_perturbations(self) -> Self:

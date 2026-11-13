@@ -144,7 +144,7 @@ def _collect(
     reorder = [data_order.index(c) for c in model.component_order]
     loader = make_loader(
         dataset,
-        eval_augmentations(settings.augmentation, window, settings.training.seed),
+        eval_augmentations(settings.augmentation, window, settings.training.seed, rate),
         settings.data,
         shuffle=False,
     )
@@ -157,6 +157,7 @@ def _collect(
                 model, config.forward(model, batch["X"][:, reorder].to(device))
             )
             picks = batch["pick_samples"].numpy()
+            unread = batch["label_mask"].numpy() == 0
             for index, phase in enumerate(PHASES):
                 probs = curves[phase].float().cpu().numpy()
                 parts[f"pick_{phase}"].append(
@@ -165,6 +166,7 @@ def _collect(
                         picks[:, index],
                         seconds_to_samples(evaluation.pick_window_s, rate),
                         seconds_to_samples(evaluation.edge_mask_s, rate),
+                        unread[:, index],
                     )
                 )
                 for tolerance in tolerances_s:
@@ -175,6 +177,7 @@ def _collect(
                             evaluation.min_peak_height,
                             seconds_to_samples(evaluation.min_peak_distance_s, rate),
                             seconds_to_samples(tolerance, rate),
+                            unread[:, index],
                         )
                     )
     return {key: PickScores.concatenate(value) for key, value in parts.items()}

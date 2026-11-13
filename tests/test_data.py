@@ -27,6 +27,7 @@ from seisbench_trainer.data.phases import (
     PHASE_COLUMNS,
     PHASES,
     Augmentation,
+    StateDict,
 )
 from seisbench_trainer.data.steps import StepContext
 
@@ -45,7 +46,10 @@ def eval_generator(
 ) -> sbg.GenericGenerator:
     generator = sbg.GenericGenerator(dataset)
     generator.add_augmentations(
-        [*eval_augmentations(AugmentationConfig(), WINDOW, seed), labeller()]
+        [
+            *eval_augmentations(AugmentationConfig(), WINDOW, seed, SAMPLING_RATE),
+            labeller(),
+        ]
     )
     return generator
 
@@ -245,7 +249,7 @@ def test_non_finite_samples_become_zero(synthetic_path: Path) -> None:
     # first in both pipelines: perturbations and normalization see no NaN
     context = StepContext(SAMPLING_RATE, WINDOW, "ZNE", local(synthetic_path))
     train = train_augmentations(AugmentationConfig(), context)
-    evaluation = eval_augmentations(AugmentationConfig(), WINDOW, 0)
+    evaluation = eval_augmentations(AugmentationConfig(), WINDOW, 0, SAMPLING_RATE)
     assert isinstance(train[0], ZeroNonFinite)
     assert isinstance(evaluation[0], ZeroNonFinite)
 
@@ -260,7 +264,11 @@ def test_noisy_validation_windows_are_seeded(synthetic_path: Path) -> None:
     def generator(with_noise: bool) -> sbg.GenericGenerator:
         generator = sbg.GenericGenerator(dataset)
         pipeline = eval_augmentations(
-            AugmentationConfig(), WINDOW, 0, noise if with_noise else None
+            AugmentationConfig(),
+            WINDOW,
+            0,
+            SAMPLING_RATE,
+            noise if with_noise else None,
         )
         generator.add_augmentations([*pipeline, labeller()])
         return generator
@@ -286,3 +294,59 @@ def test_noisy_validation_without_noise_traces(synthetic_path: Path) -> None:
 
     step = NoisyValidation(query='trace_category == "explosion"')
     assert step.build(local(synthetic_path), WINDOW, "ZNE") is None
+
+
+@pytest.mark.parametrize(
+    ("picks", "masked_p", "masked_s"),
+    [
+        ({"trace_S_arrival_sample": 500.0}, (0, 470), None),  # P unread
+        ({"trace_P_arrival_sample": 200.0}, None, (230, 1000)),  # S unread
+        (
+            {"trace_P_arrival_sample": 200.0, "trace_S_arrival_sample": 500.0},
+            None,
+            None,
+        ),
+        ({}, None, None),  # noise trace
+        ({"trace_S_arrival_sample": 1500.0}, (0, 1000), None),  # S after the window
+        ({"trace_P_arrival_sample": -400.0}, None, (0, 1000)),  # P before the window
+    ],
+)
+def test_unread_phase_mask(
+    picks: dict[str, float],
+    masked_p: tuple[int, int] | None,
+    masked_s: tuple[int, int] | None,
+) -> None:
+    from seisbench_trainer.data.augmentations import UnreadPhaseMask
+
+    state: StateDict = {"X": (np.ones((3, 1000)), picks)}
+    UnreadPhaseMask(margin=30)(state)
+    mask = state["label_mask"][0]
+    for row, masked in ((PHASES.index("P"), masked_p), (PHASES.index("S"), masked_s)):
+        expected = np.ones(1000)
+        if masked is not None:
+            expected[masked[0] : masked[1]] = 0
+        np.testing.assert_array_equal(mask[row], expected)
+
+    state = {"X": (np.ones((3, 1000)), picks)}
+    UnreadPhaseMask(margin=30, enabled=False)(state)  # missing_picks="absent"
+    assert state["label_mask"][0].all()
+
+
+def test_label_mask_in_both_pipelines(synthetic_path: Path) -> None:
+    from seisbench_trainer.data.augmentations import UnreadPhaseMask
+
+    context = StepContext(SAMPLING_RATE, WINDOW, "ZNE", local(synthetic_path))
+    config = AugmentationConfig(label_sigma_s=0.2)
+    train = train_augmentations(config, context)
+    crop = next(i for i, a in enumerate(train) if isinstance(a, sbg.RandomWindow))
+    assert isinstance(train[crop + 1], UnreadPhaseMask)  # before the perturbations
+    assert train[crop + 1].margin == 60  # 3 sigma of 20 samples
+    evaluation = eval_augmentations(config, WINDOW, 0, SAMPLING_RATE)
+    assert any(isinstance(a, UnreadPhaseMask) for a in evaluation)
+    absent = AugmentationConfig(missing_picks="absent")
+    (mask,) = [
+        a
+        for a in eval_augmentations(absent, WINDOW, 0, SAMPLING_RATE)
+        if isinstance(a, UnreadPhaseMask)
+    ]
+    assert not mask.enabled

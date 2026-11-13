@@ -129,7 +129,9 @@ def test_label_augmentations_follow_model_labels(synthetic_path: Path) -> None:
     generator = sbg.GenericGenerator(dataset)
     generator.add_augmentations(
         [
-            *eval_augmentations(AugmentationConfig(), 3001, seed=0),
+            *eval_augmentations(
+                AugmentationConfig(), 3001, seed=0, sampling_rate=100.0
+            ),
             *config.label_augmentations(model, sigma_samples=10, shape="gaussian"),
         ]
     )
@@ -215,7 +217,12 @@ def test_training_step_backpropagates(synthetic_path: Path) -> None:
     module = PickerModule(config)
     splits = load_splits(config.data)
     augmentations = [
-        *eval_augmentations(config.augmentation, module.window_samples, seed=0),
+        *eval_augmentations(
+            config.augmentation,
+            module.window_samples,
+            seed=0,
+            sampling_rate=config.data.sampling_rate,
+        ),
         *config.model.label_augmentations(module.model, 10, "gaussian"),
     ]
     batch = next(iter(make_loader(splits.train, augmentations, config.data, False)))
@@ -234,7 +241,12 @@ def test_lightning_fit_one_batch(synthetic_path: Path) -> None:
     splits = load_splits(config.data)
     labels = config.model.label_augmentations(module.model, 10, "gaussian")
     augmentations = [
-        *eval_augmentations(config.augmentation, module.window_samples, seed=0),
+        *eval_augmentations(
+            config.augmentation,
+            module.window_samples,
+            seed=0,
+            sampling_rate=config.data.sampling_rate,
+        ),
         *labels,
     ]
     train = make_loader(splits.train, augmentations, config.data, shuffle=True)

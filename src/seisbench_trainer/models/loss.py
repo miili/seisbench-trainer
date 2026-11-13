@@ -31,8 +31,10 @@ class CrossEntropyLoss(StrictModel):
     """Soft-target cross-entropy over the softmax output channels (PhaseNet).
 
     Per sample, ``-sum_c w_c * y_c * log(q_c)``; averaged over the samples
-    and the batch. The default takes ``log_softmax`` of the logits, as the
-    original PhaseNet, and weighs the noise channel 0.5. ``from_logits=False``
+    and the batch, leaving out the samples where the batch's ``label_mask``
+    (``augmentation.missing_picks``) marks an unread phase. The default takes
+    ``log_softmax`` of the logits, as the original PhaseNet, and weighs the
+    noise channel 0.5. ``from_logits=False``
     and ``weights={}`` give SeisBench's pick-benchmark ``vector_cross_entropy``
     (``log(softmax + eps)``, unweighted).
     """
@@ -84,7 +86,12 @@ class _CrossEntropy:
             log_q = torch.log(torch.softmax(logits, dim=1) + self.eps)
         weights = torch.tensor(self.weights, dtype=log_q.dtype, device=log_q.device)
         target = batch["y"] * weights[None, :, None]
-        return -(target * log_q).sum(dim=1).mean()
+        per_sample = -(target * log_q).sum(dim=1)
+        if "label_mask" not in batch:
+            return per_sample.mean()
+        # samples where a phase may arrive unread leave the loss (all channels)
+        mask = batch["label_mask"].amin(dim=1).to(per_sample.dtype)
+        return (per_sample * mask).sum() / mask.sum().clamp(min=1.0)
 
 
 PhaseNetLoss = Annotated[CrossEntropyLoss, Field(discriminator="type")]
