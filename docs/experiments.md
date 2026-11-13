@@ -247,6 +247,66 @@ Open: sigma 0.2 s with more seeds and sigma 0.3-0.4 s (also at 50 Hz,
 to separate width in seconds from width in samples); `real_noise`
 evaluated on noisier data than its own validation split.
 
+## 2026-11-13: against the DLF v4b reference model
+
+MLflow experiment `deeplowfrequency/PhaseNet-vs-v4b`, code `8f8cab1`,
+configs in `~/sbt-runs/deeplowfrequency/configs-v4/`. The baseline of every
+run is v4b (`~/tmp/PhaseNet_DLF/reference_model/phasenet_dlf_v4b_original.json`),
+the picker of the Laacher See DLF catalogue: volpick fine-tuned on the same
+21,983 events (training code `~/tmp/PhaseNet_DLF/3_training/`).
+
+**Splits:** `deeplowfrequency` was split anew, not like v4b. v4b trained on
+3,050 of our 4,397 test events (13,751 of 19,937 test traces) and on 1,564
+of 2,199 dev events, so its scores here are optimistic. By decision, our
+splits are the benchmark anyway.
+
+**Partial labels:** v4b treats a missing P or S pick as "not read": the
+loss is masked where it can arrive. Code `8f8cab1` added that as
+`augmentation.missing_picks` (default `unread`) for the loss and the
+metrics. Under `unread`, all P F1 values rise (v4b 0.83 to 0.88 on test),
+because a correct pick of an unread P no longer counts as false.
+
+Test F1 at 0.5 s tolerance with the dev thresholds, pick MAE; validation
+`det/f1_mean` and `noisy/det/f1_mean` at the best epoch, against v4b on the
+same validation windows (the windows depend on the seed):
+
+| model | test F1 P / S | test MAE P / S | val (v4b) | noisy val (v4b) |
+| --- | --- | --- | --- | --- |
+| v4b (reference weights) | 0.876 / 0.786 | 0.146 / 0.210 s | | |
+| volpick, no fine-tuning | 0.863 / 0.783 | 0.152 / 0.216 s | | |
+| ours, sigma 0.2 s, seed 42 | 0.871 / **0.790** | 0.153 / 0.214 s | **0.842** (0.840) | **0.678** (0.663) |
+| ours, sigma 0.2 s, seed 43 | 0.869 / 0.786 | 0.157 / 0.218 s | **0.843** (0.842) | **0.683** (0.661) |
+| ours, sigma 0.2 s, `std` noise | 0.870 / 0.789 | 0.154 / 0.214 s | 0.842 (0.840) | 0.675 (0.663) |
+| ours, sigma 0.1 s | 0.867 / 0.777 | 0.152 / 0.216 s | 0.834 (0.840) | 0.673 (0.664) |
+| ours, sigma 0.2 s, trained `absent` | 0.867 / 0.794 | 0.155 / 0.213 s | | |
+| v4b's recipe, trained here | 0.870 / 0.787 | 0.154 / 0.217 s | 0.840 (0.841) | 0.669 (0.665) |
+
+("ours": rotate 0.5, real noise 0.5 `peak`, dropout 0.2, `unread`, Adam
+0.001, batch 1024, plateau 5 / stop 15 on `det/f1_mean`. "v4b's recipe":
+pick window always, real noise `std`, dropout 0.2, no rotation, N weight 1,
+`log(softmax + eps)`, Adam 0.0001, batch 256, plateau 2 / stop 5 on
+`val_loss`, seed 0; 12-20 min per run.)
+
+- **Clean data: a tie.** On validation ours is within 0.002 of v4b (+0.001
+  to +0.002). On test v4b leads P by 0.005 and trails S by up to 0.004;
+  v4b's own recipe trained on our splits lands exactly where ours does
+  (0.870 / 0.787), so v4b's P lead is what it gains from having trained
+  on 69 % of the test traces.
+- **Noisy data: ours wins.** +0.015 to +0.023 `noisy/det/f1_mean` over v4b
+  on the same windows; v4b's recipe retrained here gains only +0.004.
+- **Pick timing:** ours 0.153-0.157 s P MAE against v4b's 0.146 s; v4b's
+  recipe here gives 0.154 s, so again the leakage, not the recipe.
+- **Sigma 0.2 s beats 0.1 s** again (+0.008 val, +0.009 test S).
+- **The partial-label mask in training** adds little: trained with
+  `absent` and scored with `unread` (evaluation run of `f0c95f4e`), the
+  model gets 0.867 / 0.794, against 0.871 / 0.790 and 0.869 / 0.786 with
+  the mask: about +0.003 on P (higher precision), S within the seed noise.
+  The mask matters most for the metrics, which no longer punish picking
+  an unread P.
+- Reproduction check: v4b's recipe in this framework scores v4b's own
+  numbers (test F1 at the test-optimal thresholds 0.880 / 0.801 against
+  v4b's 0.882 / 0.800).
+
 ## Reference recipes
 
 - PhaseNet (Zhu & Beroza 2019, doi:10.1093/gji/ggy423): softmax
