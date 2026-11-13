@@ -307,6 +307,88 @@ pick window always, real noise `std`, dropout 0.2, no rotation, N weight 1,
   numbers (test F1 at the test-optimal thresholds 0.880 / 0.801 against
   v4b's 0.882 / 0.800).
 
+## 2026-11-13: 60 s of context (50 Hz) on deeplowfrequency
+
+MLflow experiment `deeplowfrequency/PhaseNet-60s`, code `e3e8026`, configs
+in `~/sbt-runs/deeplowfrequency/configs-v5/`. The winning recipe of the v4b
+comparison (rotate, real noise `peak`, dropout, `unread`) with 60 s input
+windows, two ways: 50 Hz (volpick time-stretched, 3001 samples = 60 s;
+`pick_window` 120 s) and 100 Hz with `augmentation.window_s` 60 (6000
+samples, which PhaseNet accepts; 6001 it does not).
+
+**Scoring across rates.** Window F1 depends on the window length, so all
+models were scored two ways: `evaluate` on 60 s dev windows (100 Hz models
+with `window_s` 60), and `annotate_eval.py` (in the run folder): every dev
+trace (about 120 s per event trace) annotated whole with `model.annotate`,
+as qseek runs the exported model, then scored with the same detection
+metrics and the `unread` mask. The second is the deployment number.
+
+Deployment (`annotate`, dev, F1 at the dev-optimal threshold):
+
+| model | F1 P 0.5 / 0.2 s | F1 S 0.5 / 0.2 s | MAE P / S (found picks) |
+| --- | --- | --- | --- |
+| 50 Hz, sigma 0.4 s | **0.814 / 0.786** | 0.648 / 0.538 | **0.037** / 0.116 s |
+| 50 Hz, sigma 0.2 s, seeds 42 / 43 | 0.797, 0.793 / 0.756, 0.751 | 0.644 / 0.549, 0.545 | 0.041 / 0.112 s |
+| 30 s (v4 winners), seeds 42 / 43 | 0.777 / 0.736 | 0.646-0.651 / 0.570 | 0.050 / 0.090 s |
+| 100 Hz trained on 60 s | 0.769 / 0.729 | 0.646-0.650 / 0.566 | 0.050 / 0.094 s |
+| volpick | 0.766 / 0.726 | **0.667 / 0.581** | 0.050 / 0.092 s |
+| v4b | 0.762 / 0.720 | 0.633 / 0.561 | 0.053 / 0.091 s |
+
+- **50 Hz wins P in deployment**: +0.016 to +0.020 F1 at 0.5 s and +0.015
+  to +0.020 at 0.2 s over every 100 Hz model (sigma 0.2 s, both seeds),
+  +0.037 with sigma 0.4 s; P timing improves too. PhaseNet's receptive
+  field is fixed in samples, so at 50 Hz it spans twice the time.
+- **S does not gain**: at 0.2 s tolerance 50 Hz is 0.02 worse and its S
+  timing 0.02 s worse. In deployment no fine-tuned model beats volpick on
+  S: whole-trace annotation shows S precision of only 0.56-0.62, the
+  fine-tuned models produce more false S peaks than volpick. Open.
+- **100 Hz on 60 s windows** won on 60 s evaluation windows (dev F1 P 0.858
+  against 0.831-0.835 for the 30 s models) but not in deployment: SeisBench
+  fixes PhaseNet's `in_samples` at 3001 and leaves it out of the export, so
+  `annotate` runs it on 30 s windows. Forcing `in_samples` 6000 breaks
+  `annotate` (F1 0.05): it still maps the output to 3001 samples. 50 Hz is
+  the deployable way to 60 s windows.
+- The 60 s window scores (`evaluate`, dev): 50 Hz sigma 0.2 s 0.862 / 0.765,
+  sigma 0.4 s 0.866 / 0.774; 30 s models and v4b 0.831-0.837 / 0.739-0.747.
+
+## 2026-11-13: the new defaults on the new BohemiaSaxony
+
+MLflow experiment `BohemiaSaxony-v2/PhaseNet-defaults`, code `e3e8026`,
+configs in `~/sbt-runs/bohemiasaxony-v2/configs/`. The dataset was rebuilt:
+329,173 traces (253k earthquake, 76k real noise of 120 s), 100 Hz ZNE,
+102 GB; 44,883 traces have S only and 8,910 P only. From scratch, ZNE, Adam
+0.003, otherwise the defaults (rotate, real noise `peak`, dropout, std,
+`unread`, sigma 0.1 s, plateau 5 / stop 15); 50-67 epochs, about 1 h per
+run with 256 GB. Its splits leak swarms: 75 % of the events have a
+neighbour within 10 km and 60 s in another split, so the absolute scores
+are optimistic; the differences stand. Validation `det/f1_mean` (the
+`absent`-trained runs re-scored under `unread` with `evaluate` on the same
+seed-42 windows):
+
+| run (seeds 42 / 43) | val | noisy val | pick MAE P |
+| --- | --- | --- | --- |
+| defaults | **0.861 / 0.861** | **0.800 / 0.799** | 0.057 / 0.061 s |
+| no real noise | 0.860 / 0.859 | 0.791 / 0.789 | 0.057 / 0.060 s |
+| old defaults (no rotate, noise, dropout; peak; `absent`) | 0.857 | | 0.058 s |
+| `absent` | 0.858 | | 0.056 s |
+| cosine, 50 epochs, no early stop | 0.858 / 0.859 | 0.797 / 0.794 | 0.060 / 0.061 s |
+| sigma 0.2 s | 0.863 | 0.803 | 0.065 s |
+| `original`, no training | 0.701 | 0.603 | |
+
+- **The new defaults hold** on a second dataset: +0.005 over the old ones.
+- **Real noise** gains +0.009 to +0.010 on the noisy windows and is neutral
+  on the clean ones (on deeplowfrequency: +0.06). A dataset that already
+  has a quarter noise traces gains less.
+- **The `unread` mask** gains +0.003 (deeplowfrequency: +0.003 on P).
+- **Plateau with early stopping is stable here**: the two seeds differ by
+  0.0004, and it beats a fixed 50-epoch cosine by 0.002-0.003. The
+  instability seen on deeplowfrequency (one seed stopped after 24 epochs)
+  belongs to the smaller dataset with its noisier validation, not to the
+  augmentation. Keep plateau 5 / stop 15.
+- **Label sigma depends on the events**: 0.2 s gains +0.0015 F1 here (within
+  the noise) but costs 0.008 s P pick MAE; the impulsive tectonic onsets
+  want 0.1 s (the default), the emergent DLF onsets 0.2 s.
+
 ## Reference recipes
 
 - PhaseNet (Zhu & Beroza 2019, doi:10.1093/gji/ggy423): softmax
