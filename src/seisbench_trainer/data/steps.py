@@ -178,7 +178,12 @@ class RotateHorizontal(RandomStep):
 
 
 class RealNoise(RandomStep):
-    """Add a random window of a recorded noise trace from the training split."""
+    """Add a random window of a recorded noise trace from the training split.
+
+    The noise's horizontal components are rotated by a random angle first.
+    Windows without a pick (noise traces, pick-free crops) get no noise, so
+    ``probability`` is the chance per window with a pick.
+    """
 
     type: Literal["real_noise"] = "real_noise"
     query: str = Field(
@@ -197,7 +202,9 @@ class RealNoise(RandomStep):
         )
         if noise is None or len(noise) == 0:
             raise ValueError(f"real_noise query {self.query!r} selects no traces")
-        return perturbations.RealNoise(noise, context.window_samples, *self.scale)
+        return perturbations.RealNoise(
+            noise, context.window_samples, *self.scale, context.component_order
+        )
 
 
 TrainStep = Annotated[

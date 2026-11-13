@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import NDArray
 
-from seisbench_trainer.data.phases import Augmentation, StateDict
+from seisbench_trainer.data.phases import PHASE_COLUMNS, Augmentation, StateDict
 
 if TYPE_CHECKING:
     from seisbench_trainer.data.loaders import AnyDataset
@@ -30,6 +30,33 @@ Waveforms = NDArray[Any]
 def _peak(x: Waveforms) -> float:
     """Absolute peak of the demeaned waveforms, over all channels."""
     return float(np.max(np.abs(x - x.mean(axis=-1, keepdims=True)), initial=0.0))
+
+
+def _horizontals(component_order: str) -> tuple[int, int]:
+    """Channel indices of N and E in ``component_order``."""
+    missing = set("NE") - set(component_order)
+    if missing:
+        raise ValueError(f"rotation needs components {sorted(missing)}")
+    return component_order.index("N"), component_order.index("E")
+
+
+def _rotate(x: Waveforms, north: int, east: int) -> Waveforms:
+    """A copy of ``x`` with N and E rotated by a random angle in [-pi, pi)."""
+    alpha = np.random.uniform(-np.pi, np.pi)
+    n, e = x[north], x[east]
+    x = x.copy()
+    x[north] = n * np.cos(alpha) - e * np.sin(alpha)
+    x[east] = n * np.sin(alpha) + e * np.cos(alpha)
+    return x
+
+
+def _has_pick(metadata: dict[str, Any] | None, n_samples: int) -> bool:
+    """Whether a pick column of ``metadata`` lies inside the window."""
+    for column in PHASE_COLUMNS:
+        value = (metadata or {}).get(column)
+        if isinstance(value, Real) and 0 <= float(value) < n_samples:
+            return True
+    return False
 
 
 class Sometimes:
@@ -132,26 +159,20 @@ class RotateHorizontal:
     """
 
     def __init__(self, component_order: str) -> None:
-        missing = set("NE") - set(component_order)
-        if missing:
-            raise ValueError(f"rotation needs components {sorted(missing)}")
-        self.north = component_order.index("N")
-        self.east = component_order.index("E")
+        self.north, self.east = _horizontals(component_order)
 
     def __call__(self, state_dict: StateDict) -> None:
         x, metadata = state_dict["X"]
-        alpha = np.random.uniform(-np.pi, np.pi)
-        north, east = x[self.north], x[self.east]
-        x = x.copy()
-        x[self.north] = north * np.cos(alpha) - east * np.sin(alpha)
-        x[self.east] = north * np.sin(alpha) + east * np.cos(alpha)
-        state_dict["X"] = (x, metadata)
+        state_dict["X"] = (_rotate(x, self.north, self.east), metadata)
 
 
 class RealNoise:
-    """Add a random window of a recorded noise trace.
+    """Add a random window of a recorded noise trace, horizontals rotated.
 
-    The noise window is demeaned and scaled so that its peak is ``scale``
+    The noise window's N and E channels are rotated by a random angle (as
+    ``RotateHorizontal``), so one noise recording gives many horizontal
+    noise fields; without N and E in ``component_order`` it is not rotated.
+    The window is then demeaned and scaled so that its peak is ``scale``
     times the waveform peak; ``scale`` is drawn uniformly from (``low``,
     ``high``). This is seisbench's ``scaling_type="peak"``. Differences:
     noise traces shorter than the window or without signal are excluded once,
@@ -159,12 +180,25 @@ class RealNoise:
     (NaN waveforms); a noise window that is all zeros is skipped. The noise
     traces must have the run's component order and sampling rate, which holds
     when they come from the training split.
+
+    Windows without a pick are left as they are (seisbench adds noise to
+    every window): the noise is there to lower the SNR of picks, and noise
+    added to noise (noise traces, pick-free crops) teaches nothing the noise
+    traces do not. ``probability`` is then the chance per window with a pick.
     """
 
     def __init__(
-        self, noise: AnyDataset, window_samples: int, low: float, high: float
+        self,
+        noise: AnyDataset,
+        window_samples: int,
+        low: float,
+        high: float,
+        component_order: str,
     ) -> None:
         self.noise = noise
+        self.horizontals = (
+            _horizontals(component_order) if set("NE") <= set(component_order) else None
+        )
         self.window_samples = window_samples
         self.low = low
         self.high = high
@@ -183,9 +217,13 @@ class RealNoise:
 
     def __call__(self, state_dict: StateDict) -> None:
         x, metadata = state_dict["X"]
+        if not _has_pick(metadata, x.shape[-1]):
+            return
         trace, _ = self.noise.get_sample(int(np.random.choice(self.indices)))
         start = np.random.randint(0, trace.shape[-1] - x.shape[-1] + 1)
         window = trace[:, start : start + x.shape[-1]]
+        if self.horizontals is not None:
+            window = _rotate(window, *self.horizontals)
         window = window - window.mean(axis=-1, keepdims=True)
         noise_peak = _peak(window)
         if noise_peak == 0:

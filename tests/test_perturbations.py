@@ -24,6 +24,7 @@ from seisbench_trainer.data.steps import RealNoise as RealNoiseStep
 from seisbench_trainer.data.steps import StepContext
 
 N_SAMPLES = 3001
+PICK = {"trace_P_arrival_sample": 1000.0}
 
 
 def waveforms(seed: int = 0, offset: float = 0.0) -> NDArray[np.float32]:
@@ -142,17 +143,50 @@ def test_real_noise_uses_noise_traces_of_the_train_split(synthetic_path: Path) -
     x = waveforms()
     peak = float(np.abs(x - x.mean(axis=-1, keepdims=True)).max())
     np.random.seed(0)
-    out, _ = apply(noise, x)
+    out, _ = apply(noise, x, PICK)
     added = out - x
     assert np.abs(added).max() == pytest.approx(0.5 * peak, rel=1e-3)
     assert np.isfinite(out).all()
+
+
+def test_real_noise_rotates_the_noise_horizontals(synthetic_path: Path) -> None:
+    train = train_split(synthetic_path)
+    rotated = RealNoise(train, N_SAMPLES, 0.5, 0.5, "ZNE")
+    plain = RealNoise(train, N_SAMPLES, 0.5, 0.5, "Z")  # no horizontals: as is
+    x = waveforms()
+    for seed in range(5):
+        # the noise trace and offset are drawn before the angle: same window
+        np.random.seed(seed)
+        a = apply(rotated, x, PICK)[0] - x
+        np.random.seed(seed)
+        b = apply(plain, x, PICK)[0] - x
+        factor = np.abs(a[0]).max() / np.abs(b[0]).max()  # peaks differ: rescaled
+        np.testing.assert_allclose(a[0], factor * b[0], rtol=1e-3, atol=1e-4)
+        np.testing.assert_allclose(
+            (a[1:] ** 2).sum(axis=0),
+            factor**2 * (b[1:] ** 2).sum(axis=0),
+            rtol=1e-3,
+            atol=1e-6,
+        )
+        assert not np.allclose(a[1:], factor * b[1:], rtol=1e-2)
+
+
+def test_real_noise_leaves_windows_without_picks(synthetic_path: Path) -> None:
+    noise = RealNoise(train_split(synthetic_path), N_SAMPLES, 0.5, 0.5, "ZNE")
+    x = waveforms()
+    outside = {"trace_P_arrival_sample": -5.0, "trace_S_arrival_sample": np.nan}
+    for metadata in (None, {}, outside, {"trace_S_arrival_sample": N_SAMPLES}):
+        out, _ = apply(noise, x, metadata)
+        np.testing.assert_array_equal(out, x)
+    out, _ = apply(noise, x, {"trace_S_arrival_sample": N_SAMPLES - 1})
+    assert not np.array_equal(out, x)
 
 
 def test_real_noise_excludes_short_traces(synthetic_path: Path) -> None:
     train = train_split(synthetic_path)
     too_long = 10 * 6000  # longer than every synthetic trace (60 s)
     with pytest.raises(ValueError, match="no noise trace"):
-        RealNoise(train, too_long, 0.0, 1.0)
+        RealNoise(train, too_long, 0.0, 1.0, "ZNE")
 
 
 def test_real_noise_query_must_select_traces(synthetic_path: Path) -> None:
