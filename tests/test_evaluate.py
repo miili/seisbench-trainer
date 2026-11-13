@@ -29,8 +29,10 @@ def exported_model(tmp_path: Path) -> Path:
     return path
 
 
-def test_load_model_from_local_path(exported_model: Path) -> None:
-    loaded = load_model(f"PhaseNet:{exported_model}")
+@pytest.mark.parametrize("suffix", ["", ".json", ".pt"])
+def test_load_model_from_local_path(exported_model: Path, suffix: str) -> None:
+    # the .json path (as qseek takes it) and the bare SeisBench prefix alike
+    loaded = load_model(f"PhaseNet:{exported_model}{suffix}")
     assert loaded.model.component_order == "ZNE"
     assert loaded.model_id is None
     assert loaded.config.variant() == "from-PhaseNet-test"

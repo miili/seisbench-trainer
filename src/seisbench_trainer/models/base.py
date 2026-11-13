@@ -28,8 +28,8 @@ class PickerModelConfig(StrictModel, ABC):
     pretrained: str | None = Field(
         default=None,
         description="Weights to start from: a SeisBench pretrained name (e.g. "
-        "'original') or a local SeisBench model path without suffix (the "
-        ".json/.pt pair). None trains from scratch.",
+        "'original') or a local SeisBench model: the path of its .json (or .pt) "
+        "file, or that path without suffix. None trains from scratch.",
     )
     sampling_rate: PositiveFloat | None = Field(
         default=None,
@@ -42,10 +42,16 @@ class PickerModelConfig(StrictModel, ABC):
     )
 
     def weights_path(self) -> Path | None:
-        """``pretrained`` as a local model path, if it is one."""
+        """``pretrained`` as a local model path (without suffix), if it is one.
+
+        The path may name the ``.json`` or ``.pt`` file of the SeisBench pair
+        or leave the suffix out, as ``sbm.<Model>.load`` takes it.
+        """
         if self.pretrained is None:
             return None
         path = Path(self.pretrained)
+        if path.suffix in (".json", ".pt"):
+            path = path.with_suffix("")
         return path if path.with_suffix(".json").is_file() else None
 
     @abstractmethod
