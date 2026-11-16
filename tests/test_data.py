@@ -16,6 +16,7 @@ from seisbench_trainer.data import (
     SeisBenchDataset,
     SyntheticDataset,
 )
+from seisbench_trainer.data.arrivals import Arrivals
 from seisbench_trainer.data.augmentations import (
     ZeroNonFinite,
     eval_augmentations,
@@ -116,10 +117,10 @@ def test_load_splits_concatenates_datasets(synthetic_path: Path) -> None:
     double = load_splits(
         DataConfig(datasets=[LocalDataset(path=synthetic_path)] * 2), preload=False
     )
-    for one, two in zip(single, double, strict=True):
+    for one, two in zip(single[:3], double[:3], strict=True):
         assert len(one) > 0
         assert len(two) == 2 * len(one)
-    assert sum(len(split) for split in single) == N_TRACES
+    assert sum(len(split) for split in single[:3]) == N_TRACES
 
 
 def test_train_loader_batches(synthetic_path: Path) -> None:
@@ -141,7 +142,7 @@ def test_pick_samples_match_labels(synthetic_path: Path) -> None:
     samples = items(eval_generator(local(synthetic_path)))
     n_checked = 0
     for sample in samples:
-        assert sample["pick_samples"].shape == (len(PHASES), 4)
+        assert sample["pick_samples"].shape == (len(PHASES), 16)
         for row, phase in enumerate(PHASES):
             channel = "PSN".index(phase)
             for pick in sample["pick_samples"][row]:
@@ -319,6 +320,7 @@ def test_unread_phase_mask(
     from seisbench_trainer.data.augmentations import UnreadPhaseMask
 
     state: StateDict = {"X": (np.ones((3, 1000)), picks)}
+    Arrivals()(state)
     UnreadPhaseMask(margin=30)(state)
     mask = state["label_mask"][0]
     for row, masked in ((PHASES.index("P"), masked_p), (PHASES.index("S"), masked_s)):
@@ -328,6 +330,7 @@ def test_unread_phase_mask(
         np.testing.assert_array_equal(mask[row], expected)
 
     state = {"X": (np.ones((3, 1000)), picks)}
+    Arrivals()(state)
     UnreadPhaseMask(margin=30, enabled=False)(state)  # missing_picks="absent"
     assert state["label_mask"][0].all()
 

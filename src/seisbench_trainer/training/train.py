@@ -110,14 +110,18 @@ def train(
         augmentation.label_shape,
     )
     if splits is None:
-        splits = load_splits(config.data)
+        splits = load_splits(config.data, label_events=augmentation.label_events)
     train_loader = make_loader(
         splits.train,
         [
             *train_augmentations(
                 augmentation,
                 StepContext(
-                    sampling_rate, window, config.data.component_order, splits.train
+                    sampling_rate,
+                    window,
+                    config.data.component_order,
+                    splits.train,
+                    splits.station_picks,
                 ),
             ),
             *labels,
@@ -125,11 +129,16 @@ def train(
         config.data,
         shuffle=True,
     )
-    dev = splits.dev
+    dev, station_picks = splits.dev, splits.station_picks
 
     def dev_loader(noise: RealNoise | None = None) -> DataLoader[Batch]:
         windows = eval_augmentations(
-            augmentation, window, config.training.seed, sampling_rate, noise
+            augmentation,
+            window,
+            config.training.seed,
+            sampling_rate,
+            noise,
+            station_picks,
         )
         return make_loader(dev, [*windows, *labels], config.data, shuffle=False)
 

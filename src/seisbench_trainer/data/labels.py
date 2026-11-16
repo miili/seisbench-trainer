@@ -5,7 +5,8 @@ labels, multi-window batches, column auto-detection and dimension orders, and
 reads only the picks of the trace's own metadata row. This labeller does one
 thing: one curve per pick, the maximum per phase, and noise as the rest. The
 curves and the arithmetic are seisbench's, so the targets are the same for
-the same picks.
+the same picks. The picks are the trace's arrivals (``data.arrivals``), which
+may include other events in the window.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from typing import Any, Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from seisbench_trainer.data.phases import PHASES, StateDict, phase_picks
+from seisbench_trainer.data.phases import PHASES, StateDict, phase_arrivals
 
 LabelShape = Literal["gaussian", "triangle", "box"]
 """Shape of the label curve around a pick."""
@@ -38,7 +39,7 @@ def _curve(shape: LabelShape, onset: float, length: int, sigma: float) -> NDArra
 class PickLabeller:
     """Write the target ``y``: shape ``(len(labels), samples)``, float64.
 
-    Every finite pick of a phase (``phase_picks``), inside the window or
+    Every finite arrival of a phase (``phase_arrivals``), inside the window or
     not, adds its curve; a phase row is the maximum of its curves. Where the
     phase rows sum to more than 1 they are scaled to sum to 1, and the noise
     row (``N`` in ``labels``, any case) is 1 minus their sum.
@@ -56,7 +57,7 @@ class PickLabeller:
         length = x.shape[-1]
         y = np.zeros((self.n_labels, length))
         for phase, row in self.rows.items():
-            for onset in phase_picks(metadata, phase):
+            for onset in phase_arrivals(metadata, phase)[0]:
                 y[row] = np.maximum(
                     y[row], _curve(self.shape, onset, length, self.sigma)
                 )

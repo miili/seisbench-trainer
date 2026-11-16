@@ -13,6 +13,7 @@ from pydantic import (
     model_validator,
 )
 
+from seisbench_trainer.data.arrivals import LabelEvents
 from seisbench_trainer.data.labels import LabelShape
 from seisbench_trainer.data.sources import DatasetConfig, SeisBenchDataset
 from seisbench_trainer.data.steps import (
@@ -109,6 +110,16 @@ class AugmentationConfig(StrictModel):
         default=0.1, description="Width of the pick label curve."
     )
     label_shape: LabelShape = "gaussian"
+    label_events: LabelEvents = Field(
+        default="trace_event",
+        description="Whose arrivals are labelled, and scored in validation and "
+        "test. 'trace_event': only the event the trace was cut for (its metadata "
+        "row; seisbench's behaviour). 'all_events': also every other event "
+        "recorded at the same station with an arrival inside the trace, so that "
+        "in a swarm the other events are not labelled noise and their "
+        "detections not counted as false picks. Needs trace_start_time, "
+        "trace_sampling_rate_hz and the station codes in the metadata.",
+    )
     missing_picks: Literal["unread", "absent"] = Field(
         default="unread",
         description="What a missing P or S pick means on a trace that has a "

@@ -11,6 +11,7 @@ import seisbench.data as sbd
 from numpy.typing import NDArray
 
 from seisbench_trainer.data import LocalDataset
+from seisbench_trainer.data.arrivals import Arrivals
 from seisbench_trainer.data.perturbations import (
     AddGap,
     ChannelDropout,
@@ -21,7 +22,7 @@ from seisbench_trainer.data.perturbations import (
     Sometimes,
     StdLevel,
 )
-from seisbench_trainer.data.phases import Augmentation, StateDict
+from seisbench_trainer.data.phases import Augmentation, StateDict, arrival_keys
 from seisbench_trainer.data.steps import PeakRatio, StdRatio, StepContext
 from seisbench_trainer.data.steps import RealNoise as RealNoiseStep
 
@@ -37,7 +38,9 @@ def waveforms(seed: int = 0, offset: float = 0.0) -> NDArray[np.float32]:
 def apply(
     augmentation: Augmentation, x: NDArray[Any], metadata: dict[str, Any] | None = None
 ) -> tuple[NDArray[Any], dict[str, Any] | None]:
+    """Run ``augmentation`` after ``Arrivals``, as in every pipeline."""
     state: StateDict = {"X": (x, metadata)}
+    Arrivals()(state)
     augmentation(state)
     return state["X"]
 
@@ -87,12 +90,13 @@ def test_add_gap_length_and_picks_in_gap() -> None:
         zero = np.flatnonzero(~out.any(axis=0))
         assert 50 <= zero.size <= 500
         assert np.all(np.diff(zero) == 1)  # one contiguous gap
-        for key, pick in metadata.items():
+        for phase, pick in (("P", 1000), ("S", 2500.0)):
+            (arrival,) = meta[arrival_keys(phase)[0]]
             if zero[0] <= pick <= zero[-1]:
-                assert np.isnan(meta[key])
+                assert np.isnan(arrival)
                 removed += 1
             else:
-                assert meta[key] == pick
+                assert arrival == pick
                 kept += 1
     assert removed > 0 and kept > 0
     assert metadata["trace_p_arrival_sample"] == 1000  # input untouched

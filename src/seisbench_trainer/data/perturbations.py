@@ -13,14 +13,19 @@ seeds per DataLoader worker. Each class lists where it deviates from its
 
 from __future__ import annotations
 
-from numbers import Real
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
 
-from seisbench_trainer.data.phases import PHASE_COLUMNS, Augmentation, StateDict
+from seisbench_trainer.data.phases import (
+    PHASES,
+    Augmentation,
+    StateDict,
+    arrival_keys,
+    phase_arrivals,
+)
 
 if TYPE_CHECKING:
     from seisbench_trainer.data.loaders import AnyDataset
@@ -54,10 +59,10 @@ def _rotate(x: Waveforms, north: int, east: int, rng: Random = np.random) -> Wav
 
 
 def _has_pick(metadata: dict[str, Any] | None, n_samples: int) -> bool:
-    """Whether a pick column of ``metadata`` lies inside the window."""
-    for column in PHASE_COLUMNS:
-        value = (metadata or {}).get(column)
-        if isinstance(value, Real) and 0 <= float(value) < n_samples:
+    """Whether an arrival of ``metadata`` lies inside the window."""
+    for phase in PHASES:
+        picks, _ = phase_arrivals(metadata, phase)
+        if ((picks >= 0) & (picks < n_samples)).any():
             return True
     return False
 
@@ -104,7 +109,7 @@ class AddGap:
     seisbench draws the gap end uniformly up to the window end, so gaps range
     from empty to almost the whole window, and picks inside the gap stay in
     the metadata, which then labels picks on zeros. Here the gap length is
-    drawn from an explicit range and picks inside the gap are set to NaN.
+    drawn from an explicit range and arrivals inside the gap are set to NaN.
     """
 
     def __init__(self, min_samples: int, max_samples: int) -> None:
@@ -122,13 +127,11 @@ class AddGap:
         x = x.copy()
         x[..., start:end] = 0
         updated = dict(metadata or {})
-        for key, value in updated.items():
-            if (
-                key.endswith("_arrival_sample")
-                and isinstance(value, Real)
-                and start <= float(value) < end
-            ):
-                updated[key] = np.nan
+        for phase in PHASES:
+            key = arrival_keys(phase)[0]
+            if key in updated:
+                picks = np.asarray(updated[key], dtype=np.float64)
+                updated[key] = np.where((picks >= start) & (picks < end), np.nan, picks)
         state_dict["X"] = (x, updated)
 
 

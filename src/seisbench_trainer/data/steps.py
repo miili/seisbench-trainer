@@ -35,6 +35,7 @@ from seisbench_trainer.schema import Fraction, StrictModel
 from seisbench_trainer.units import seconds_to_samples
 
 if TYPE_CHECKING:
+    from seisbench_trainer.data.arrivals import StationPicks
     from seisbench_trainer.data.loaders import AnyDataset
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,8 @@ class StepContext:
     component_order: str
     train: AnyDataset
     """The training split (the noise source of ``real_noise``)."""
+    station_picks: StationPicks | None = None
+    """Picks of every event by station, for ``label_events="all_events"``."""
 
 
 class RandomStep(StrictModel, ABC):

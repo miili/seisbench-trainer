@@ -29,6 +29,7 @@ FIXED_PATHS = (
     "data.datasets",
     "data.component_order",
     "data.sampling_rate",
+    "augmentation.label_events",
     "training.monitor",
     "hpo",
 )

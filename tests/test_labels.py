@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import seisbench.generate as sbg
 
+from seisbench_trainer.data.arrivals import Arrivals
 from seisbench_trainer.data.labels import LabelShape, PickLabeller
 from seisbench_trainer.data.phases import PHASE_COLUMNS
 
@@ -35,6 +36,7 @@ def test_same_targets_as_seisbench(shape: LabelShape, labels: str) -> None:
         metadata = random_metadata(rng, length)
         ours: dict[str, Any] = {"X": (x, dict(metadata))}
         reference: dict[str, Any] = {"X": (x, dict(metadata))}
+        Arrivals()(ours)
         PickLabeller(labels, sigma, shape)(ours)
         sbg.ProbabilisticLabeller(
             label_columns=PHASE_COLUMNS,
@@ -52,6 +54,7 @@ def test_every_pick_of_a_phase_is_labelled() -> None:
     state: dict[str, Any] = {
         "X": (x, {"trace_Pg_arrival_sample": 20.0, "trace_Pn_arrival_sample": 70.0})
     }
+    Arrivals()(state)
     PickLabeller("PSN", 2, "gaussian")(state)
     y = state["y"][0]
     assert y[0, 20] == y[0, 70] == 1.0

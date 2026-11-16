@@ -171,7 +171,7 @@ def run_worker(config: TrainConfig) -> optuna.Study:
     hpo = _hpo(config)
     study, parent = _open_study(config)
     if _finished(study) < hpo.n_trials:
-        splits = load_splits(config.data)
+        splits = load_splits(config.data, label_events=config.augmentation.label_events)
         stop = optuna.study.MaxTrialsCallback(hpo.n_trials, states=FINISHED)
         study.optimize(
             _objective(config, splits, parent),

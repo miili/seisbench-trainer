@@ -25,6 +25,7 @@ from torch import Tensor
 
 from seisbench_trainer.config import EvaluationConfig, TrainConfig
 from seisbench_trainer.data import DataConfig, DatasetConfig
+from seisbench_trainer.data.arrivals import StationPicks
 from seisbench_trainer.data.augmentations import eval_augmentations
 from seisbench_trainer.data.loaders import (
     AnyDataset,
@@ -190,6 +191,7 @@ def _collect(
     settings: TrainConfig,
     reorder: list[int],
     tolerances_s: list[float],
+    station_picks: StationPicks | None,
 ) -> dict[str, PickScores]:
     """Run the model over a split. Keys ``pick_<phase>``, ``det_<phase>@<tol>``."""
     rate = settings.data.sampling_rate
@@ -197,7 +199,13 @@ def _collect(
     window = settings.augmentation.window_samples(config.window_samples(model), rate)
     loader = make_loader(
         dataset,
-        eval_augmentations(settings.augmentation, window, settings.training.seed, rate),
+        eval_augmentations(
+            settings.augmentation,
+            window,
+            settings.training.seed,
+            rate,
+            station_picks=station_picks,
+        ),
         settings.data,
         shuffle=False,
     )
@@ -256,19 +264,26 @@ def evaluate(
             }
         )
         settings = settings.model_copy(update={"data": data})
-        splits = load_splits(data, preload=False)
+        splits = load_splits(
+            data, preload=False, label_events=settings.augmentation.label_events
+        )
         for needed in {"dev", split}:
             getattr(splits, needed).preload_waveforms(pbar=True)
 
     evaluation = settings.evaluation
     rate = settings.data.sampling_rate
     tolerances = evaluation.test_tolerances_s
-    dev = _collect(loaded, splits.dev, settings, reorder, [evaluation.tolerance_s])
+    picks = splits.station_picks
+    dev = _collect(
+        loaded, splits.dev, settings, reorder, [evaluation.tolerance_s], picks
+    )
     thresholds = {
         phase: best_threshold(dev[f"det_{phase}@{evaluation.tolerance_s:g}"])
         for phase in PHASES
     }
-    results = _collect(loaded, getattr(splits, split), settings, reorder, tolerances)
+    results = _collect(
+        loaded, getattr(splits, split), settings, reorder, tolerances, picks
+    )
 
     label = dataset_label(settings)
     dataset = _dataset_entity(getattr(splits, split), f"{label}/{split}")
