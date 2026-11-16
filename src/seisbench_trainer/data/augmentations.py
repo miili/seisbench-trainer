@@ -95,15 +95,20 @@ class UnreadPhaseMask:
     event of the window's arrivals counts on its own: if it has S but no P,
     its P lies before its first S, and row P is 0 up to that S minus
     ``margin``. If it has P but no S, row S is 0 from its first P plus
-    ``margin``. Arrival positions are window-relative, so this runs right
+    ``margin``. With ``max_sp``, these stretches reach only ``max_sp``
+    samples before the S or after the P, not to the window edge. Arrival
+    positions are window-relative, so this runs right
     after the windows, before perturbations that remove arrivals
     (``add_gap``). With ``enabled=False`` (``missing_picks="absent"``) the
     mask is all ones.
     """
 
-    def __init__(self, margin: int, enabled: bool = True) -> None:
+    def __init__(
+        self, margin: int, enabled: bool = True, max_sp: int | None = None
+    ) -> None:
         self.margin = margin
         self.enabled = enabled
+        self.max_sp = max_sp
 
     def __call__(self, state_dict: StateDict) -> None:
         x, metadata = state_dict["X"]
@@ -118,10 +123,16 @@ class UnreadPhaseMask:
                 s = s_picks[s_events == event]
                 if s.size and not p.size:
                     end = int(np.clip(s.min() - self.margin, 0, n_samples))
-                    mask[p_index, :end] = 0
+                    start = 0
+                    if self.max_sp is not None:
+                        start = int(np.clip(s.min() - self.max_sp, 0, n_samples))
+                    mask[p_index, start:end] = 0
                 elif p.size and not s.size:
                     start = int(np.clip(p.min() + self.margin, 0, n_samples))
-                    mask[s_index, start:] = 0
+                    end = n_samples
+                    if self.max_sp is not None:
+                        end = int(np.clip(p.min() + self.max_sp, 0, n_samples))
+                    mask[s_index, start:end] = 0
         state_dict["label_mask"] = (mask, None)
 
 
@@ -158,7 +169,14 @@ def _normalize(config: AugmentationConfig) -> list[Augmentation]:
 
 def _unread_mask(config: AugmentationConfig, sampling_rate: float) -> UnreadPhaseMask:
     sigma = seconds_to_samples(config.label_sigma_s, sampling_rate)
-    return UnreadPhaseMask(3 * sigma, enabled=config.missing_picks == "unread")
+    max_sp = (
+        None
+        if config.max_sp_s is None
+        else seconds_to_samples(config.max_sp_s, sampling_rate)
+    )
+    return UnreadPhaseMask(
+        3 * sigma, enabled=config.missing_picks == "unread", max_sp=max_sp
+    )
 
 
 def train_augmentations(

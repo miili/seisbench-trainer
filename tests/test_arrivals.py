@@ -131,3 +131,31 @@ def test_all_events_needs_start_times(synthetic_path: Path) -> None:
     config = DataConfig(datasets=[LocalDataset(path=synthetic_path)])
     with pytest.raises(ValueError, match="trace_start_time"):
         load_splits(config, preload=False, label_events="all_events")
+
+
+def test_max_sp_bounds_the_unread_stretches() -> None:
+    # event 0: S only at 500; event 1: P only at 100; event 2 complete
+    metadata: dict[str, Any] = {
+        "arrivals_P_sample": np.array([100.0, 900.0]),
+        "arrivals_P_event": np.array([1, 2]),
+        "arrivals_S_sample": np.array([500.0, 950.0]),
+        "arrivals_S_event": np.array([0, 2]),
+    }
+    state: StateDict = {"X": (np.ones((3, 1000)), metadata)}
+    UnreadPhaseMask(margin=30, max_sp=200)(state)
+    mask = state["label_mask"][0]
+    p_row, s_row = mask[PHASES.index("P")], mask[PHASES.index("S")]
+    # event 0's P: from 200 before its S to the margin before it
+    assert np.flatnonzero(p_row == 0).tolist() == list(range(300, 470))
+    # event 1's S: from the margin after its P to 200 after it
+    assert np.flatnonzero(s_row == 0).tolist() == list(range(130, 300))
+
+
+def test_max_sp_must_exceed_the_margin() -> None:
+    from pydantic import ValidationError
+
+    from seisbench_trainer.data.config import AugmentationConfig
+
+    with pytest.raises(ValidationError, match="unread margin"):
+        AugmentationConfig(label_sigma_s=0.1, max_sp_s=0.3)
+    assert AugmentationConfig(label_sigma_s=0.1, max_sp_s=15.0).max_sp_s == 15.0

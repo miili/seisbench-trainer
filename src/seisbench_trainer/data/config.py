@@ -110,6 +110,15 @@ class AugmentationConfig(StrictModel):
         default=0.1, description="Width of the pick label curve."
     )
     label_shape: LabelShape = "gaussian"
+    max_sp_s: PositiveFloat | None = Field(
+        default=None,
+        description="Longest S-P time. With missing_picks='unread', an event's "
+        "unread P is looked for only this far before its S, and an unread S "
+        "this far after its P, instead of up to the window edge, which in a "
+        "multi-event window would also hide the other events' arrivals from the "
+        "loss. None: up to the window edge. BohemiaSaxony: 99.9 % of the S-P "
+        "times are below 14.7 s.",
+    )
     label_events: LabelEvents = Field(
         default="trace_event",
         description="Whose arrivals are labelled, and scored in validation and "
@@ -140,6 +149,15 @@ class AugmentationConfig(StrictModel):
         if self.window_s is None:
             return model_samples
         return seconds_to_samples(self.window_s, sampling_rate)
+
+    @model_validator(mode="after")
+    def _sp_beyond_the_margin(self) -> Self:
+        if self.max_sp_s is not None and self.max_sp_s <= 3 * self.label_sigma_s:
+            raise ValueError(
+                "max_sp_s must exceed the unread margin, 3 * label_sigma_s "
+                f"= {3 * self.label_sigma_s:g} s"
+            )
+        return self
 
     @model_validator(mode="after")
     def _windows_then_perturbations(self) -> Self:
