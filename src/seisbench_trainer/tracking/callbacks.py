@@ -12,12 +12,13 @@ import seisbench.models as sbm
 import torch
 from lightning.pytorch.loggers import MLFlowLogger
 from mlflow import MlflowClient
-from numpy.typing import NDArray
 from torch import Tensor
 
 from seisbench_trainer.config import TrainConfig
+from seisbench_trainer.data.loaders import Batch
 from seisbench_trainer.data.phases import PHASES
-from seisbench_trainer.metrics.picks import PickScores, detect_picks, pick_accuracy
+from seisbench_trainer.evaluate import Scoring
+from seisbench_trainer.metrics.picks import PickScores
 from seisbench_trainer.metrics.plots import (
     PhaseResult,
     figure_to_png,
@@ -26,9 +27,9 @@ from seisbench_trainer.metrics.plots import (
 )
 from seisbench_trainer.metrics.scores import summarize
 from seisbench_trainer.models import ModelConfig
+from seisbench_trainer.models.base import input_order
 from seisbench_trainer.tracking.run import dataset_label
 from seisbench_trainer.training.module import NOISY, PickerModule
-from seisbench_trainer.units import seconds_to_samples
 
 BASELINE = "baseline/"
 """Prefix of baseline metrics: one dashboard section for all of them."""
@@ -51,13 +52,9 @@ class EvaluationCallback(pl.Callback):
     def __init__(self, config: TrainConfig) -> None:
         super().__init__()
         evaluation = config.evaluation
-        sampling_rate = config.data.sampling_rate
         self.config = config
-        self.half_window = seconds_to_samples(evaluation.pick_window_s, sampling_rate)
-        self.edge = seconds_to_samples(evaluation.edge_mask_s, sampling_rate)
-        self.tolerance = seconds_to_samples(evaluation.tolerance_s, sampling_rate)
-        self.min_distance = seconds_to_samples(
-            evaluation.min_peak_distance_s, sampling_rate
+        self.scoring = Scoring.from_config(
+            evaluation, config.data.sampling_rate, [evaluation.tolerance_s]
         )
         self.baseline: tuple[ModelConfig, sbm.WaveformModel, list[int]] | None = None
         if evaluation.baseline is not None:
@@ -76,17 +73,9 @@ class EvaluationCallback(pl.Callback):
     ) -> tuple[ModelConfig, sbm.WaveformModel, list[int]]:
         model = baseline.load_pretrained()
         data = self.config.data
-        if model.sampling_rate != data.sampling_rate:
-            raise ValueError(
-                f"baseline expects {model.sampling_rate} Hz, "
-                f"the data has {data.sampling_rate} Hz; set "
-                f'"evaluation.baseline.sampling_rate" to {data.sampling_rate:g} '
-                "to run it time-stretched"
-            )
-        missing = set(model.component_order) - set(data.component_order)
-        if missing:
-            raise ValueError(f"baseline needs components {missing} the data lacks")
-        reorder = [data.component_order.index(c) for c in model.component_order]
+        reorder = input_order(
+            model, data.component_order, data.sampling_rate, "evaluation.baseline"
+        )
         model.eval().requires_grad_(False)
         return baseline, model, reorder
 
@@ -96,28 +85,12 @@ class EvaluationCallback(pl.Callback):
         model_config: ModelConfig,
         model: sbm.WaveformModel,
         pred: Tensor,
-        picks: NDArray[np.float32],
-        unread: NDArray[np.bool_],
+        batch: Batch,
     ) -> None:
-        evaluation = self.config.evaluation
-        curves = model_config.phase_probabilities(model, pred)
-        for phase_index, phase in enumerate(PHASES):
-            probs = curves[phase].detach().float().cpu().numpy()
-            phase_picks = picks[:, phase_index]
-            ignore = unread[:, phase_index]
-            self.collected[f"{prefix}pick_{phase}"].append(
-                pick_accuracy(probs, phase_picks, self.half_window, self.edge, ignore)
-            )
-            self.collected[f"{prefix}det_{phase}"].append(
-                detect_picks(
-                    probs,
-                    phase_picks,
-                    evaluation.min_peak_height,
-                    self.min_distance,
-                    self.tolerance,
-                    ignore,
-                )
-            )
+        scores = self.scoring(model_config, model, pred, batch)
+        for phase, (pick, (detection,)) in scores.items():
+            self.collected[f"{prefix}pick_{phase}"].append(pick)
+            self.collected[f"{prefix}det_{phase}"].append(detection)
 
     def on_validation_batch_end(
         self,
@@ -133,28 +106,18 @@ class EvaluationCallback(pl.Callback):
         assert isinstance(pl_module, PickerModule)
         assert isinstance(outputs, Mapping) and isinstance(batch, Mapping)
         pred = outputs["pred"]
-        fields = cast(Mapping[str, object], batch)
-        x = fields["X"]
-        picks = fields["pick_samples"]
         assert isinstance(pred, Tensor)
-        assert isinstance(x, Tensor) and isinstance(picks, Tensor)
-        pick_array = picks.cpu().numpy()
-        label_mask = fields["label_mask"]
-        assert isinstance(label_mask, Tensor)
-        unread = label_mask.cpu().numpy() == 0
+        fields = cast(Batch, batch)
         loader = "" if dataloader_idx == 0 else NOISY
-        self._collect(
-            loader, self.config.model, pl_module.model, pred, pick_array, unread
-        )
+        self._collect(loader, self.config.model, pl_module.model, pred, fields)
 
         if self.baseline is not None and self.baseline_scores is None:
             config, model, reorder = self.baseline
+            x = fields["X"]
             model.to(x.device)
             with torch.no_grad():
                 baseline_pred = config.forward(model, x[:, reorder])
-            self._collect(
-                BASELINE + loader, config, model, baseline_pred, pick_array, unread
-            )
+            self._collect(BASELINE + loader, config, model, baseline_pred, fields)
 
     def _metrics(
         self, scores: dict[str, PickScores], include_static: bool

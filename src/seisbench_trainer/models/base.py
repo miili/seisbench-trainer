@@ -24,6 +24,24 @@ if TYPE_CHECKING:
 LabelShape = Literal["gaussian", "triangle", "box"]
 
 
+def input_order(
+    model: sbm.WaveformModel, component_order: str, sampling_rate: float, name: str
+) -> list[int]:
+    """Channel indices that turn data in ``component_order`` into the model's
+    own order. Raises ``ValueError`` if the model runs at another rate or
+    needs a component the data lacks."""
+    if model.sampling_rate != sampling_rate:
+        raise ValueError(
+            f"{name} expects {model.sampling_rate} Hz, the data has "
+            f"{sampling_rate} Hz; set its sampling_rate to {sampling_rate:g} to "
+            "run it time-stretched"
+        )
+    missing = set(model.component_order) - set(component_order)
+    if missing:
+        raise ValueError(f"{name} needs components {sorted(missing)} the data lacks")
+    return [component_order.index(c) for c in model.component_order]
+
+
 class PickerModelConfig(StrictModel, ABC):
     pretrained: str | None = Field(
         default=None,

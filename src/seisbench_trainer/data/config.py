@@ -23,6 +23,7 @@ from seisbench_trainer.data.steps import (
     TrainStep,
 )
 from seisbench_trainer.schema import StrictModel
+from seisbench_trainer.units import seconds_to_samples
 
 ComponentOrder = Annotated[str, StringConstraints(pattern=r"^[A-Z0-9]{1,3}$")]
 
@@ -121,6 +122,12 @@ class AugmentationConfig(StrictModel):
         "label is noise there and every peak of that phase is a false pick "
         "(seisbench pick-benchmark). Traces without any pick are noise in both.",
     )
+
+    def window_samples(self, model_samples: int, sampling_rate: float) -> int:
+        """Model input length in samples: ``window_s``, or the model's own."""
+        if self.window_s is None:
+            return model_samples
+        return seconds_to_samples(self.window_s, sampling_rate)
 
     @model_validator(mode="after")
     def _windows_then_perturbations(self) -> Self:

@@ -9,7 +9,6 @@ from torch import Tensor
 
 from seisbench_trainer.config import TrainConfig
 from seisbench_trainer.data.loaders import Batch
-from seisbench_trainer.units import seconds_to_samples
 
 NOISY = "noisy/"
 """Prefix of the noisy-validation metrics (second validation loader)."""
@@ -29,10 +28,9 @@ class PickerModule(pl.LightningModule):
     @property
     def window_samples(self) -> int:
         """Input window length: the config override or the model default."""
-        window_s = self.config.augmentation.window_s
-        if window_s is None:
-            return self.config.model.window_samples(self.model)
-        return seconds_to_samples(window_s, self.config.data.sampling_rate)
+        return self.config.augmentation.window_samples(
+            self.config.model.window_samples(self.model), self.config.data.sampling_rate
+        )
 
     def forward(self, x: Tensor) -> Tensor:
         return self.config.model.forward(self.model, x)

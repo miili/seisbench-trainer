@@ -23,11 +23,18 @@ from mlflow.artifacts import download_artifacts
 from mlflow.data.pandas_dataset import PandasDataset, from_pandas
 from mlflow.models import get_model_info
 from pydantic import TypeAdapter
+from torch import Tensor
 
-from seisbench_trainer.config import TrainConfig
+from seisbench_trainer.config import EvaluationConfig, TrainConfig
 from seisbench_trainer.data import DataConfig, DatasetConfig
 from seisbench_trainer.data.augmentations import eval_augmentations
-from seisbench_trainer.data.loaders import AnyDataset, Splits, load_splits, make_loader
+from seisbench_trainer.data.loaders import (
+    AnyDataset,
+    Batch,
+    Splits,
+    load_splits,
+    make_loader,
+)
 from seisbench_trainer.data.phases import PHASES
 from seisbench_trainer.metrics.picks import PickScores, detect_picks, pick_accuracy
 from seisbench_trainer.metrics.scores import (
@@ -36,6 +43,7 @@ from seisbench_trainer.metrics.scores import (
     threshold_curve,
 )
 from seisbench_trainer.models import ModelConfig
+from seisbench_trainer.models.base import input_order
 from seisbench_trainer.tracking.run import TRAIN_CONFIG
 from seisbench_trainer.units import seconds_to_samples
 
@@ -129,61 +137,89 @@ def parse_dataset(spec: str) -> DatasetConfig:
     return SeisBenchDataset(name=spec)
 
 
+@dataclass(frozen=True)
+class Scoring:
+    """Scores the predictions of one batch per phase: pick accuracy, and
+    detection at each tolerance. The settings are in samples."""
+
+    half_window: int
+    edge: int
+    min_height: float
+    min_distance: int
+    tolerances: list[int]
+
+    @classmethod
+    def from_config(
+        cls,
+        evaluation: EvaluationConfig,
+        sampling_rate: float,
+        tolerances_s: list[float],
+    ) -> Scoring:
+        return cls(
+            half_window=seconds_to_samples(evaluation.pick_window_s, sampling_rate),
+            edge=seconds_to_samples(evaluation.edge_mask_s, sampling_rate),
+            min_height=evaluation.min_peak_height,
+            min_distance=seconds_to_samples(
+                evaluation.min_peak_distance_s, sampling_rate
+            ),
+            tolerances=[seconds_to_samples(t, sampling_rate) for t in tolerances_s],
+        )
+
+    def __call__(
+        self, config: ModelConfig, model: sbm.WaveformModel, pred: Tensor, batch: Batch
+    ) -> dict[str, tuple[PickScores, list[PickScores]]]:
+        """Per phase: the pick-accuracy scores and the detection scores of
+        every tolerance. ``pred`` is the model output on ``batch``."""
+        curves = config.phase_probabilities(model, pred)
+        picks = batch["pick_samples"].cpu().numpy()
+        unread = batch["label_mask"].cpu().numpy() == 0
+        scores: dict[str, tuple[PickScores, list[PickScores]]] = {}
+        for index, phase in enumerate(PHASES):
+            probs = curves[phase].detach().float().cpu().numpy()
+            phase_picks, ignore = picks[:, index], unread[:, index]
+            pick = pick_accuracy(
+                probs, phase_picks, self.half_window, self.edge, ignore
+            )
+            detections = [
+                detect_picks(
+                    probs, phase_picks, self.min_height, self.min_distance, t, ignore
+                )
+                for t in self.tolerances
+            ]
+            scores[phase] = (pick, detections)
+        return scores
+
+
 def _collect(
     loaded: LoadedModel,
     dataset: AnyDataset,
     settings: TrainConfig,
-    data_order: str,
+    reorder: list[int],
     tolerances_s: list[float],
 ) -> dict[str, PickScores]:
     """Run the model over a split. Keys ``pick_<phase>``, ``det_<phase>@<tol>``."""
-    evaluation = settings.evaluation
     rate = settings.data.sampling_rate
     model, config = loaded.model, loaded.config
-    window = (
-        config.window_samples(model)
-        if settings.augmentation.window_s is None
-        else seconds_to_samples(settings.augmentation.window_s, rate)
-    )
-    reorder = [data_order.index(c) for c in model.component_order]
+    window = settings.augmentation.window_samples(config.window_samples(model), rate)
     loader = make_loader(
         dataset,
         eval_augmentations(settings.augmentation, window, settings.training.seed, rate),
         settings.data,
         shuffle=False,
     )
+    scoring = Scoring.from_config(settings.evaluation, rate, tolerances_s)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device).eval()
     parts: dict[str, list[PickScores]] = defaultdict(list)
     with torch.no_grad():
         for batch in loader:
-            curves = config.phase_probabilities(
-                model, config.forward(model, batch["X"][:, reorder].to(device))
-            )
-            picks = batch["pick_samples"].numpy()
-            unread = batch["label_mask"].numpy() == 0
-            for index, phase in enumerate(PHASES):
-                probs = curves[phase].float().cpu().numpy()
-                parts[f"pick_{phase}"].append(
-                    pick_accuracy(
-                        probs,
-                        picks[:, index],
-                        seconds_to_samples(evaluation.pick_window_s, rate),
-                        seconds_to_samples(evaluation.edge_mask_s, rate),
-                        unread[:, index],
-                    )
-                )
-                for tolerance in tolerances_s:
-                    parts[f"det_{phase}@{tolerance:g}"].append(
-                        detect_picks(
-                            probs,
-                            picks[:, index],
-                            evaluation.min_peak_height,
-                            seconds_to_samples(evaluation.min_peak_distance_s, rate),
-                            seconds_to_samples(tolerance, rate),
-                            unread[:, index],
-                        )
-                    )
+            pred = config.forward(model, batch["X"][:, reorder].to(device))
+            for phase, (pick, detections) in scoring(
+                config, model, pred, batch
+            ).items():
+                parts[f"pick_{phase}"].append(pick)
+                for tolerance, detection in zip(tolerances_s, detections, strict=True):
+                    parts[f"det_{phase}@{tolerance:g}"].append(detection)
     return {key: PickScores.concatenate(value) for key, value in parts.items()}
 
 
@@ -211,12 +247,10 @@ def evaluate(
     and dataset.
     """
     model = loaded.model
-    if model.sampling_rate != settings.data.sampling_rate:
-        raise ValueError(
-            f"{loaded.name} expects {model.sampling_rate} Hz, "
-            f"the data has {settings.data.sampling_rate} Hz"
-        )
-    data_order = settings.data.component_order
+    data_order = (
+        model.component_order if splits is None else settings.data.component_order
+    )
+    reorder = input_order(model, data_order, settings.data.sampling_rate, loaded.name)
     if splits is None:
         data = DataConfig.model_validate(
             settings.data.model_dump()
@@ -228,7 +262,6 @@ def evaluate(
             }
         )
         settings = settings.model_copy(update={"data": data})
-        data_order = model.component_order
         splits = load_splits(data, preload=False)
         for needed in {"dev", split}:
             getattr(splits, needed).preload_waveforms(pbar=True)
@@ -236,13 +269,13 @@ def evaluate(
     evaluation = settings.evaluation
     rate = settings.data.sampling_rate
     tolerances = evaluation.test_tolerances_s
-    dev = _collect(loaded, splits.dev, settings, data_order, [evaluation.tolerance_s])
+    dev = _collect(loaded, splits.dev, settings, reorder, [evaluation.tolerance_s])
     selection_key = f"@{evaluation.tolerance_s:g}"
     thresholds = {
         phase: summarize(dev[f"det_{phase}{selection_key}"], rate, [])["threshold"]
         for phase in PHASES
     }
-    results = _collect(loaded, getattr(splits, split), settings, data_order, tolerances)
+    results = _collect(loaded, getattr(splits, split), settings, reorder, tolerances)
 
     label = "+".join(source.label() for source in settings.data.datasets)
     dataset = _dataset_entity(getattr(splits, split), f"{label}/{split}")
