@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from typer.testing import CliRunner
 
 from seisbench_trainer import __version__
@@ -25,3 +26,22 @@ def test_metrics_table_rows() -> None:
     metrics = {"det_P/f1": 0.8, "pick_P/mae_s": 0.02, "baseline/det_P/f1": 0.7}
     table = metrics_table(metrics, ("P", "S"))
     assert table.row_count == 2  # trained P and baseline P; no S metrics
+
+
+def test_trial_rows_keep_a_zero_score() -> None:
+    optuna = pytest.importorskip("optuna")
+    from seisbench_trainer.cli import _trial_rows
+
+    lr = optuna.distributions.FloatDistribution(1e-4, 1e-2)
+    trials = [
+        optuna.trial.create_trial(
+            state=optuna.trial.TrialState.RUNNING, params={}, distributions={}
+        ),
+        optuna.trial.create_trial(
+            value=0.0, params={"lr": 1e-3}, distributions={"lr": lr}
+        ),
+    ]
+    rows = _trial_rows(trials, "det/f1_mean", "max")
+    # a real score of 0, ranked before the unfinished trial
+    assert rows[0]["det/f1_mean"] == 0.0
+    assert rows[0]["lr"] == "0.001"

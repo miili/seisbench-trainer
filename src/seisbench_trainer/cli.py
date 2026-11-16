@@ -6,7 +6,7 @@ import logging
 import signal
 from pathlib import Path
 from types import FrameType
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
@@ -21,6 +21,10 @@ from seisbench_trainer.console import (
 )
 from seisbench_trainer.data.phases import PHASES
 from seisbench_trainer.data.preprocessing import Split
+from seisbench_trainer.training.optim import Mode
+
+if TYPE_CHECKING:  # optuna is the optional hpo extra
+    from optuna.trial import FrozenTrial
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
 
@@ -171,21 +175,29 @@ def hpo_command(
     signal.signal(signal.SIGTERM, _interrupt_on_sigterm)
     study = run_worker(config)
 
+    training = config.training
+    rows = _trial_rows(study.trials, training.monitor, training.monitor_mode)
+    console.print(f"Study [bold]{config.hpo.study_name}[/]: {len(study.trials)} trials")
+    console.print(rows_table(rows[:10]))
+
+
+def _trial_rows(
+    trials: list[FrozenTrial], monitor: str, mode: Mode
+) -> list[dict[str, str | float | int]]:
+    """One row per trial, the best first; unfinished and failed trials last."""
     rows: list[dict[str, str | float | int]] = []
-    for trial in study.trials:
+    for trial in trials:
         row: dict[str, str | float | int] = {
             "trial": trial.number,
             "state": trial.state.name,
-            config.training.monitor: trial.value or float("nan"),
+            monitor: float("nan") if trial.value is None else trial.value,
         }
         params = trial.params.items()
         rows.append(
             row | {k: f"{v:.4g}" if isinstance(v, float) else str(v) for k, v in params}
         )
-    reverse = config.training.monitor_mode == "max"
-    rows.sort(key=lambda r: _sort_value(r, config.training.monitor, reverse))
-    console.print(f"Study [bold]{config.hpo.study_name}[/]: {len(study.trials)} trials")
-    console.print(rows_table(rows[:10]))
+    rows.sort(key=lambda r: _sort_value(r, monitor, mode == "max"))
+    return rows
 
 
 def _sort_value(row: dict[str, str | float | int], key: str, reverse: bool) -> float:
