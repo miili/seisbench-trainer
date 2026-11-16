@@ -75,7 +75,14 @@ class EvaluationRow:
     n_false_picks: int
 
 
-def _model_id(ref: str) -> str:
+def _model_source(ref: str) -> tuple[str, str]:
+    """The logged model's ID and the URI to download it from.
+
+    A training run's model is downloaded from its own artifact location. The
+    folder store looks a ``models:/<id>`` URI up in every experiment and fails
+    on the metrics-only folder that an evaluation linked to the model leaves
+    in its own experiment.
+    """
     if RUN_ID.fullmatch(ref):
         # search the run's experiment: the default is only the active one
         experiment_id = mlflow.get_run(ref).info.experiment_id
@@ -86,11 +93,10 @@ def _model_id(ref: str) -> str:
         )
         if not models:
             raise ValueError(f"run {ref} has no logged model")
-        return models[0].model_id
+        return models[0].model_id, models[0].artifact_location
     name = ref.removeprefix("models:/")
-    if name.startswith("m-"):
-        return name
-    return get_model_info(ref).model_id
+    model_id = name if name.startswith("m-") else get_model_info(ref).model_id
+    return model_id, f"models:/{model_id}"
 
 
 def load_model(ref: str) -> LoadedModel:
@@ -102,9 +108,9 @@ def load_model(ref: str) -> LoadedModel:
     a local model path, e.g. ``PhaseNet:original``.
     """
     if ref.startswith("models:/") or RUN_ID.fullmatch(ref):
-        model_id = _model_id(ref)
+        model_id, uri = _model_source(ref)
         with TemporaryDirectory() as tmp:
-            path = Path(download_artifacts(f"models:/{model_id}", dst_path=tmp))
+            path = Path(download_artifacts(uri, dst_path=tmp))
             extra = path / "extra_files"
             source = TrainConfig.model_validate_json((extra / TRAIN_CONFIG).read_text())
             export = next(extra.glob("*.pt")).with_suffix("")
