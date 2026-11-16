@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
 
-from seisbench_trainer.data.phases import PHASE_COLUMNS, Augmentation
-from seisbench_trainer.models.base import LabelShape, PickerModelConfig
+from seisbench_trainer.data.labels import LabelShape, PickLabeller
+from seisbench_trainer.data.phases import Augmentation
+from seisbench_trainer.models.base import PickerModelConfig
 from seisbench_trainer.models.loss import CrossEntropyLoss, LossFunction, PhaseNetLoss
 
 if TYPE_CHECKING:
@@ -56,17 +57,7 @@ class PhaseNetConfig(PickerModelConfig):
     def label_augmentations(
         self, model: sbm.WaveformModel, sigma_samples: int, shape: LabelShape
     ) -> list[Augmentation]:
-        import seisbench.generate as sbg
-
-        return [
-            sbg.ProbabilisticLabeller(
-                label_columns=PHASE_COLUMNS,
-                sigma=sigma_samples,
-                shape=shape,
-                dim=0,
-                model_labels=model.labels,
-            )
-        ]
+        return [PickLabeller(model.labels, sigma_samples, shape)]
 
     def forward_logits(self, model: sbm.WaveformModel, x: Tensor) -> Tensor:
         logits: Tensor = model(model.annotate_batch_pre(x, {}), logits=True)

@@ -9,10 +9,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from pydantic import Field, PositiveFloat
 
+from seisbench_trainer.data.labels import LabelShape
 from seisbench_trainer.data.phases import PHASES, Augmentation
 from seisbench_trainer.models.loss import LossFunction
 from seisbench_trainer.schema import StrictModel
@@ -20,8 +21,6 @@ from seisbench_trainer.schema import StrictModel
 if TYPE_CHECKING:
     import seisbench.models as sbm
     from torch import Tensor
-
-LabelShape = Literal["gaussian", "triangle", "box"]
 
 
 def input_order(

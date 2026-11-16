@@ -13,6 +13,7 @@ from pydantic import (
     model_validator,
 )
 
+from seisbench_trainer.data.labels import LabelShape
 from seisbench_trainer.data.sources import DatasetConfig, SeisBenchDataset
 from seisbench_trainer.data.steps import (
     ChannelDropout,
@@ -107,7 +108,7 @@ class AugmentationConfig(StrictModel):
     label_sigma_s: PositiveFloat = Field(
         default=0.1, description="Width of the pick label curve."
     )
-    label_shape: Literal["gaussian", "triangle", "box"] = "gaussian"
+    label_shape: LabelShape = "gaussian"
     missing_picks: Literal["unread", "absent"] = Field(
         default="unread",
         description="What a missing P or S pick means on a trace that has a "
