@@ -17,13 +17,15 @@ from lightning.pytorch.callbacks import (
     RichProgressBar,
 )
 from lightning.pytorch.loggers import MLFlowLogger
+from torch.utils.data import DataLoader
 
 from seisbench_trainer.config import TrainConfig
 from seisbench_trainer.data.augmentations import (
     eval_augmentations,
     train_augmentations,
 )
-from seisbench_trainer.data.loaders import Splits, load_splits, make_loader
+from seisbench_trainer.data.loaders import Batch, Splits, load_splits, make_loader
+from seisbench_trainer.data.perturbations import RealNoise
 from seisbench_trainer.data.steps import StepContext
 from seisbench_trainer.evaluate import LoadedModel, evaluate
 from seisbench_trainer.metrics.names import BASELINE
@@ -123,39 +125,21 @@ def train(
         config.data,
         shuffle=True,
     )
-    dev_loader = make_loader(
-        splits.dev,
-        [
-            *eval_augmentations(
-                augmentation, window, config.training.seed, sampling_rate
-            ),
-            *labels,
-        ],
-        config.data,
-        shuffle=False,
-    )
+    dev = splits.dev
 
-    dev_loaders = [dev_loader]
+    def dev_loader(noise: RealNoise | None = None) -> DataLoader[Batch]:
+        windows = eval_augmentations(
+            augmentation, window, config.training.seed, sampling_rate, noise
+        )
+        return make_loader(dev, [*windows, *labels], config.data, shuffle=False)
+
+    dev_loaders = [dev_loader()]
     noisy = config.evaluation.noisy_validation
     noise = (
-        None
-        if noisy is None
-        else noisy.build(splits.dev, window, config.data.component_order)
+        None if noisy is None else noisy.build(dev, window, config.data.component_order)
     )
     if noise is not None:
-        dev_loaders.append(
-            make_loader(
-                splits.dev,
-                [
-                    *eval_augmentations(
-                        augmentation, window, config.training.seed, sampling_rate, noise
-                    ),
-                    *labels,
-                ],
-                config.data,
-                shuffle=False,
-            )
-        )
+        dev_loaders.append(dev_loader(noise))
 
     set_experiment(experiment_name(config))
     with mlflow.start_run(
