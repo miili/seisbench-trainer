@@ -56,18 +56,19 @@ src/seisbench_trainer/
   metrics/
     __init__.py
     picks.py             pick_accuracy (window-based), detect_picks (label-free)
-    scores.py            precision_recall_f1, best_threshold, roc_auc, summary
+    scores.py            threshold_curve, best_threshold, at_threshold, roc_auc, average_precision, summarize
+    names.py             metric-name prefixes (baseline/, noisy/)
     plots.py             one summary figure per phase (matplotlib, no pyplot)
   tracking/
     __init__.py
     run.py               run metadata: config, git, versions, Slurm tags; LoggedModel export
     callbacks.py         EvaluationCallback (metrics and figures to MLflow)
     registry.py          register, export
-  evaluate.py            load_model(ref), evaluate(): test and cross-dataset evaluation
+  evaluate.py            load_model(ref), evaluate(): test and cross-dataset evaluation; Scoring (shared with the callback)
   hpo/                   imported only with the [hpo] extra
     __init__.py
-    space.py             FloatParam | IntParam | CategoricalParam (tag "type")
-    study.py             SamplerConfig and PrunerConfig unions; worker loop
+    config.py            HPOConfig: FloatParam | IntParam | CategoricalParam, SamplerConfig and PrunerConfig unions (tag "type")
+    study.py             worker loop
 tests/
   conftest.py            synthetic SeisBench dataset fixture (tmp_path)
   test_*.py

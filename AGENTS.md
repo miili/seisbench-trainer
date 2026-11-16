@@ -13,10 +13,10 @@ optimisation (HPO) on a workstation or a Slurm cluster.
 
 ## Status
 
-This is a new project. Only the `uv init` scaffold exists. The training code
-is being ported from the MSc thesis project in `../khuzaima`
-(package `seisbench_training`). Requirements and the plan are defined before
-any code is written. Do not add modules ahead of the agreed plan.
+The training code was ported from the MSc thesis project in `../khuzaima`
+(package `seisbench_training`). Steps 0–6 and 9 of the plan are implemented;
+steps 7 (per-dataset metrics and weights), 8 (registry and export) and 10
+(EQTransformer) are open. Do not add modules ahead of the agreed plan.
 
 The requirements are in `docs/requirements.md`. The step-by-step
 implementation plan is in `docs/plan.md`; implement one step at a time.
