@@ -19,6 +19,7 @@ from seisbench_trainer.data.phases import (
     PHASES,
     Augmentation,
     StateDict,
+    phase_columns,
 )
 from seisbench_trainer.data.steps import RandomWindow, StepContext
 from seisbench_trainer.units import seconds_to_samples
@@ -118,8 +119,7 @@ class UnreadPhaseMask:
         if self.enabled:
             first: dict[str, float] = {}
             for phase in PHASES:
-                columns = [c for c, p in PHASE_COLUMNS.items() if p == phase]
-                picks = _pick_values(metadata or {}, columns)
+                picks = _pick_values(metadata or {}, phase_columns(phase))
                 if picks:
                     first[phase] = min(picks)
             p_index, s_index = PHASES.index("P"), PHASES.index("S")
@@ -147,10 +147,8 @@ class PickSamples:
         metadata = state_dict["X"][1] or {}
         out = np.full((len(PHASES), self.max_picks), np.nan, dtype=np.float32)
         for row, phase in enumerate(PHASES):
-            columns = [c for c, p in PHASE_COLUMNS.items() if p == phase]
-            inside = {
-                v for v in _pick_values(metadata, columns) if 0 <= v < self.windowlen
-            }
+            picks = _pick_values(metadata, phase_columns(phase))
+            inside = {v for v in picks if 0 <= v < self.windowlen}
             picks = sorted(inside)[: self.max_picks]
             out[row, : len(picks)] = picks
         state_dict["pick_samples"] = (out, None)

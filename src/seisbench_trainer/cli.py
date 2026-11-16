@@ -6,7 +6,7 @@ import logging
 import signal
 from pathlib import Path
 from types import FrameType
-from typing import Annotated, Literal
+from typing import Annotated
 
 import typer
 
@@ -15,11 +15,12 @@ from seisbench_trainer.config import TrainConfig, dump_config, load_config
 from seisbench_trainer.console import (
     console,
     err_console,
-    evaluation_table,
     metrics_table,
+    rows_table,
     setup_logging,
 )
 from seisbench_trainer.data.phases import PHASES
+from seisbench_trainer.data.preprocessing import Split
 
 app = typer.Typer(no_args_is_help=True, rich_markup_mode="rich")
 
@@ -115,9 +116,7 @@ def evaluate_command(
             help="Run config for data, augmentation and evaluation settings.",
         ),
     ] = None,
-    split: Annotated[
-        Literal["train", "dev", "test"], typer.Option(help="Split to evaluate.")
-    ] = "test",
+    split: Annotated[Split, typer.Option(help="Split to evaluate.")] = "test",
     experiment: Annotated[str | None, typer.Option(help="MLflow experiment.")] = None,
 ) -> None:
     """Evaluate a model on a dataset split; thresholds come from the dev split."""
@@ -141,7 +140,7 @@ def evaluate_command(
     with mlflow.start_run(run_name=f"eval-{loaded.name}", tags=tags) as run:
         rows = evaluate(loaded, settings, split)
     console.print(f"Evaluation run [bold]{run.info.run_id}[/]")
-    console.print(evaluation_table([vars(row) for row in rows]))
+    console.print(rows_table([vars(row) for row in rows]))
 
 
 @app.command("hpo")
@@ -186,7 +185,7 @@ def hpo_command(
     reverse = config.training.monitor_mode == "max"
     rows.sort(key=lambda r: _sort_value(r, config.training.monitor, reverse))
     console.print(f"Study [bold]{config.hpo.study_name}[/]: {len(study.trials)} trials")
-    console.print(evaluation_table(rows[:10]))
+    console.print(rows_table(rows[:10]))
 
 
 def _sort_value(row: dict[str, str | float | int], key: str, reverse: bool) -> float:

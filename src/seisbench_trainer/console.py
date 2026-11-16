@@ -58,8 +58,8 @@ def metrics_table(metrics: dict[str, float], phases: tuple[str, ...]) -> Table:
     return table
 
 
-def evaluation_table(rows: list[dict[str, str | float | int]]) -> Table:
-    """Test results: one row per model, phase and tolerance."""
+def rows_table(rows: list[dict[str, str | float | int]]) -> Table:
+    """A table of rows with the same keys: evaluation results, HPO trials."""
     table = Table()
     if not rows:
         return table

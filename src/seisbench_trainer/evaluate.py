@@ -12,7 +12,6 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Literal
 
 import mlflow
 import pandas as pd
@@ -35,16 +34,16 @@ from seisbench_trainer.data.loaders import (
     make_loader,
 )
 from seisbench_trainer.data.phases import PHASES
+from seisbench_trainer.data.preprocessing import Split
 from seisbench_trainer.metrics.picks import PickScores, detect_picks, pick_accuracy
 from seisbench_trainer.metrics.scores import at_threshold, best_threshold, summarize
 from seisbench_trainer.models import ModelConfig
 from seisbench_trainer.models.base import input_order
-from seisbench_trainer.tracking.run import TRAIN_CONFIG
+from seisbench_trainer.tracking.run import TRAIN_CONFIG, dataset_label
 from seisbench_trainer.units import seconds_to_samples
 
 logger = logging.getLogger(__name__)
 
-Split = Literal["train", "dev", "test"]
 RUN_ID = re.compile(r"[0-9a-f]{32}")
 
 
@@ -271,7 +270,7 @@ def evaluate(
     }
     results = _collect(loaded, getattr(splits, split), settings, reorder, tolerances)
 
-    label = "+".join(source.label() for source in settings.data.datasets)
+    label = dataset_label(settings)
     dataset = _dataset_entity(getattr(splits, split), f"{label}/{split}")
     mlflow.log_input(dataset, context=f"{prefix}{split}")
     metrics: dict[str, float] = {}

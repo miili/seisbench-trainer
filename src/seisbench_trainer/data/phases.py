@@ -34,3 +34,8 @@ PHASE_COLUMNS: dict[str, str] = {
     "trace_Sn_arrival_sample": "S",
 }
 """Metadata pick columns and the phase each one labels."""
+
+
+def phase_columns(phase: str) -> list[str]:
+    """The metadata pick columns of one phase."""
+    return [column for column, p in PHASE_COLUMNS.items() if p == phase]

@@ -31,15 +31,13 @@ from pydantic import (
 from seisbench_trainer.data import perturbations
 from seisbench_trainer.data.phases import PHASE_COLUMNS, Augmentation, StateDict
 from seisbench_trainer.data.preprocessing import query_mask
-from seisbench_trainer.schema import StrictModel
+from seisbench_trainer.schema import Fraction, StrictModel
 from seisbench_trainer.units import seconds_to_samples
 
 if TYPE_CHECKING:
     from seisbench_trainer.data.loaders import AnyDataset
 
 logger = logging.getLogger(__name__)
-
-Probability = Annotated[float, Field(ge=0.0, le=1.0)]
 
 
 def _ordered(value: tuple[float, float]) -> tuple[float, float]:
@@ -66,7 +64,7 @@ class StepContext:
 class RandomStep(StrictModel, ABC):
     """A step that is applied to a training example with ``probability``."""
 
-    probability: Probability = Field(
+    probability: Fraction = Field(
         description="Chance that the step is applied to a training example."
     )
 

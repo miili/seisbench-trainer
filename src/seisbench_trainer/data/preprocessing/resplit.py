@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import TYPE_CHECKING, Annotated, Literal, Self
+from typing import TYPE_CHECKING, Literal, Self
 
 import numpy as np
 import pandas as pd
@@ -16,13 +16,12 @@ from seisbench_trainer.data.preprocessing.base import (
     DatasetStep,
     Split,
 )
+from seisbench_trainer.schema import Fraction
 
 if TYPE_CHECKING:
     import seisbench.data as sbd
 
 logger = logging.getLogger(__name__)
-
-Fraction = Annotated[float, Field(ge=0.0, le=1.0)]
 
 
 class Resplit(DatasetStep):
