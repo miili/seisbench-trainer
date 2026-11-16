@@ -57,18 +57,50 @@ def threshold_curve(
     return ThresholdCurve(thresholds, precision, recall, f1)
 
 
-def roc_curve(scores: PickScores) -> tuple[FloatArray, FloatArray]:
-    """False and true positive rates over all distinct score thresholds."""
-    n_true, n_negative = scores.scores.size, scores.negative_scores.size
-    values = np.r_[scores.scores, scores.negative_scores]
-    is_true = np.r_[np.ones(n_true), np.zeros(n_negative)]
+def best_threshold(scores: PickScores) -> float:
+    """The threshold with the highest F1."""
+    curve = threshold_curve(scores)
+    return float(curve.thresholds[curve.best()])
+
+
+def at_threshold(
+    scores: PickScores, threshold: float, sampling_rate: float
+) -> dict[str, float]:
+    """Precision, recall and F1 at ``threshold``, and the residual statistics
+    (in seconds) of the true picks found there."""
+    curve = threshold_curve(scores, np.array([threshold]))
+    found = scores.residuals[scores.scores >= threshold] / sampling_rate
+    return {
+        "precision": float(curve.precision[0]),
+        "recall": float(curve.recall[0]),
+        "f1": float(curve.f1[0]),
+        **residual_summary(found, []),
+    }
+
+
+def _ranked_counts(
+    positives: FloatArray, negatives: FloatArray
+) -> tuple[FloatArray, FloatArray]:
+    """True and false positives at each distinct score, from the highest
+    score down. Needs at least one score."""
+    values = np.r_[positives, negatives]
+    is_true = np.r_[np.ones(positives.size), np.zeros(negatives.size)]
     order = np.argsort(-values, kind="stable")
     true_positive = np.cumsum(is_true[order])
     false_positive = np.cumsum(1 - is_true[order])
     # last position of each distinct score: ties move together
     distinct = np.r_[np.flatnonzero(np.diff(values[order])), values.size - 1]
-    false_rate = np.r_[0.0, false_positive[distinct] / max(n_negative, 1)]
-    true_rate = np.r_[0.0, true_positive[distinct] / max(n_true, 1)]
+    return true_positive[distinct], false_positive[distinct]
+
+
+def roc_curve(scores: PickScores) -> tuple[FloatArray, FloatArray]:
+    """False and true positive rates over all distinct score thresholds."""
+    n_true, n_negative = scores.scores.size, scores.negative_scores.size
+    true_positive, false_positive = _ranked_counts(
+        scores.scores, scores.negative_scores
+    )
+    false_rate = np.r_[0.0, false_positive / max(n_negative, 1)]
+    true_rate = np.r_[0.0, true_positive / max(n_true, 1)]
     return false_rate, true_rate
 
 
@@ -93,19 +125,11 @@ def average_precision(scores: PickScores) -> float:
     if not n_true:
         return float("nan")
     found = scores.scores[scores.scores > 0]
-    values = np.r_[found, scores.negative_scores]
-    if not values.size:
+    if not (found.size or scores.negative_scores.size):
         return 0.0
-    is_true = np.r_[np.ones(found.size), np.zeros(scores.negative_scores.size)]
-    order = np.argsort(-values, kind="stable")
-    true_positive = np.cumsum(is_true[order])
-    false_positive = np.cumsum(1 - is_true[order])
-    # last position of each distinct score: ties move together
-    distinct = np.r_[np.flatnonzero(np.diff(values[order])), values.size - 1]
-    precision = true_positive[distinct] / (
-        true_positive[distinct] + false_positive[distinct]
-    )
-    recall = true_positive[distinct] / n_true
+    true_positive, false_positive = _ranked_counts(found, scores.negative_scores)
+    precision = true_positive / (true_positive + false_positive)
+    recall = true_positive / n_true
     return float(np.sum(np.diff(np.r_[0.0, recall]) * precision))
 
 
@@ -144,22 +168,18 @@ def summarize(
     residual statistics of all true picks (``*_s``) and of the picks found at
     the selected threshold (``*_s_at_threshold``).
     """
-    curve = threshold_curve(scores)
-    best = curve.best()
-    threshold = float(curve.thresholds[best])
-    residuals_s = scores.residuals / sampling_rate
-    found = scores.scores >= threshold
-    at_threshold = residual_summary(residuals_s[found], tolerances_s)
+    threshold = best_threshold(scores)
+    found = at_threshold(scores, threshold, sampling_rate)
     return {
         "threshold": threshold,
-        "precision": float(curve.precision[best]),
-        "recall": float(curve.recall[best]),
-        "f1": float(curve.f1[best]),
+        "precision": found["precision"],
+        "recall": found["recall"],
+        "f1": found["f1"],
         "auc": roc_auc(scores),
         "ap": average_precision(scores),
         "n_picks": float(scores.scores.size),
         "n_negatives": float(scores.negative_scores.size),
-        **residual_summary(residuals_s, tolerances_s),
-        "mae_s_at_threshold": at_threshold["mae_s"],
-        "rms_s_at_threshold": at_threshold["rms_s"],
+        **residual_summary(scores.residuals / sampling_rate, tolerances_s),
+        "mae_s_at_threshold": found["mae_s"],
+        "rms_s_at_threshold": found["rms_s"],
     }

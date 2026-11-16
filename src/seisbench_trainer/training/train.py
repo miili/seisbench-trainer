@@ -26,6 +26,7 @@ from seisbench_trainer.data.augmentations import (
 from seisbench_trainer.data.loaders import Splits, load_splits, make_loader
 from seisbench_trainer.data.steps import StepContext
 from seisbench_trainer.evaluate import LoadedModel, evaluate
+from seisbench_trainer.metrics.names import BASELINE
 from seisbench_trainer.tracking.callbacks import EvaluationCallback
 from seisbench_trainer.tracking.run import (
     experiment_name,
@@ -80,7 +81,7 @@ def _test(
         loaded = LoadedModel(
             baseline, baseline.load_pretrained(), f"baseline {baseline.variant()}"
         )
-        evaluate(loaded, config, "test", splits, prefix="baseline/")
+        evaluate(loaded, config, "test", splits, prefix=BASELINE)
 
 
 def train(

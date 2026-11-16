@@ -18,6 +18,7 @@ from seisbench_trainer.config import TrainConfig
 from seisbench_trainer.data.loaders import Batch
 from seisbench_trainer.data.phases import PHASES
 from seisbench_trainer.evaluate import Scoring
+from seisbench_trainer.metrics.names import BASELINE, NOISY
 from seisbench_trainer.metrics.picks import PickScores
 from seisbench_trainer.metrics.plots import (
     PhaseResult,
@@ -29,10 +30,7 @@ from seisbench_trainer.metrics.scores import summarize
 from seisbench_trainer.models import ModelConfig
 from seisbench_trainer.models.base import input_order
 from seisbench_trainer.tracking.run import dataset_label
-from seisbench_trainer.training.module import NOISY, PickerModule
-
-BASELINE = "baseline/"
-"""Prefix of baseline metrics: one dashboard section for all of them."""
+from seisbench_trainer.training.module import PickerModule
 
 
 class EvaluationCallback(pl.Callback):

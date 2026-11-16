@@ -9,9 +9,7 @@ from torch import Tensor
 
 from seisbench_trainer.config import TrainConfig
 from seisbench_trainer.data.loaders import Batch
-
-NOISY = "noisy/"
-"""Prefix of the noisy-validation metrics (second validation loader)."""
+from seisbench_trainer.metrics.names import NOISY
 
 
 class PickerModule(pl.LightningModule):

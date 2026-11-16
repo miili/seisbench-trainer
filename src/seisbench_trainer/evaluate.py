@@ -15,7 +15,6 @@ from tempfile import TemporaryDirectory
 from typing import Literal
 
 import mlflow
-import numpy as np
 import pandas as pd
 import seisbench.models as sbm
 import torch
@@ -37,11 +36,7 @@ from seisbench_trainer.data.loaders import (
 )
 from seisbench_trainer.data.phases import PHASES
 from seisbench_trainer.metrics.picks import PickScores, detect_picks, pick_accuracy
-from seisbench_trainer.metrics.scores import (
-    residual_summary,
-    summarize,
-    threshold_curve,
-)
+from seisbench_trainer.metrics.scores import at_threshold, best_threshold, summarize
 from seisbench_trainer.models import ModelConfig
 from seisbench_trainer.models.base import input_order
 from seisbench_trainer.tracking.run import TRAIN_CONFIG
@@ -270,9 +265,8 @@ def evaluate(
     rate = settings.data.sampling_rate
     tolerances = evaluation.test_tolerances_s
     dev = _collect(loaded, splits.dev, settings, reorder, [evaluation.tolerance_s])
-    selection_key = f"@{evaluation.tolerance_s:g}"
     thresholds = {
-        phase: summarize(dev[f"det_{phase}{selection_key}"], rate, [])["threshold"]
+        phase: best_threshold(dev[f"det_{phase}@{evaluation.tolerance_s:g}"])
         for phase in PHASES
     }
     results = _collect(loaded, getattr(splits, split), settings, reorder, tolerances)
@@ -290,20 +284,18 @@ def evaluate(
         metrics[f"{base}det_{phase}/threshold"] = threshold
         for tolerance in tolerances:
             scores = results[f"det_{phase}@{tolerance:g}"]
-            curve = threshold_curve(scores, np.array([threshold]))
-            found = scores.residuals[scores.scores >= threshold] / rate
-            stats = residual_summary(found, [])
+            found = at_threshold(scores, threshold, rate)
             row = EvaluationRow(
                 model=loaded.name,
                 phase=phase,
                 tolerance_s=tolerance,
                 threshold=threshold,
-                precision=float(curve.precision[0]),
-                recall=float(curve.recall[0]),
-                f1=float(curve.f1[0]),
-                mae_s=stats["mae_s"],
-                median_s=stats["median_s"],
-                rms_s=stats["rms_s"],
+                precision=found["precision"],
+                recall=found["recall"],
+                f1=found["f1"],
+                mae_s=found["mae_s"],
+                median_s=found["median_s"],
+                rms_s=found["rms_s"],
                 n_picks=int(scores.scores.size),
                 n_false_picks=int((scores.negative_scores >= threshold).sum()),
             )

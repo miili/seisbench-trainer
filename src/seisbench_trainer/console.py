@@ -13,6 +13,8 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.table import Table
 
+from seisbench_trainer.metrics.names import BASELINE
+
 console = Console()
 err_console = Console(stderr=True)
 
@@ -46,7 +48,7 @@ def metrics_table(metrics: dict[str, float], phases: tuple[str, ...]) -> Table:
     table.add_column("phase")
     for header, _ in SUMMARY_COLUMNS:
         table.add_column(header, justify="right")
-    for prefix, name in (("", "trained"), ("baseline/", "baseline")):
+    for prefix, name in (("", "trained"), (BASELINE, "baseline")):
         for phase in phases:
             keys = [prefix + key.format(phase=phase) for _, key in SUMMARY_COLUMNS]
             if not any(key in metrics for key in keys):
