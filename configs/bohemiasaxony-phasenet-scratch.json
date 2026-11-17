@@ -15,20 +15,6 @@
     "type": "PhaseNet",
     "pretrained": null
   },
-  "augmentation": {
-    "train": [
-      {
-        "type": "pick_window",
-        "probability": 0.667,
-        "length_s": 60.0,
-        "before_s": 30.0
-      },
-      {
-        "type": "random_window"
-      }
-    ],
-    "label_sigma_s": 0.1
-  },
   "training": {
     "epochs": 100,
     "accelerator": "gpu",

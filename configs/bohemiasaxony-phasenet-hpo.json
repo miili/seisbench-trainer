@@ -1,37 +1,85 @@
 {
   "data": {
-    "datasets": [{"type": "seisbench", "name": "BohemiaSaxony"}],
+    "datasets": [
+      {
+        "type": "seisbench",
+        "name": "BohemiaSaxony"
+      }
+    ],
     "component_order": "ENZ",
     "sampling_rate": 100.0,
     "batch_size": 1024,
     "num_workers": 16
   },
-  "model": {"type": "PhaseNet", "pretrained": "original"},
-  "augmentation": {
-    "train": [
-      {"type": "pick_window", "probability": 0.667, "length_s": 60.0, "before_s": 30.0},
-      {"type": "random_window"}
-    ]
+  "model": {
+    "type": "PhaseNet",
+    "pretrained": "original"
   },
   "training": {
     "epochs": 30,
     "accelerator": "gpu",
     "monitor": "det/f1_mean"
   },
-  "evaluation": {"baseline": null},
-  "tracking": {"tags": {"purpose": "hpo"}},
+  "evaluation": {
+    "baseline": null
+  },
+  "tracking": {
+    "tags": {
+      "purpose": "hpo"
+    }
+  },
   "hpo": {
     "study_name": "bohemiasaxony-phasenet-original",
     "storage": "/home/isken/sbt-runs/optuna/bohemiasaxony-phasenet-original.journal",
     "n_trials": 40,
-    "sampler": {"type": "tpe", "n_startup_trials": 10, "seed": 42},
-    "pruner": {"type": "median", "n_startup_trials": 5, "n_warmup_steps": 5},
+    "sampler": {
+      "type": "tpe",
+      "n_startup_trials": 10,
+      "seed": 42
+    },
+    "pruner": {
+      "type": "median",
+      "n_startup_trials": 5,
+      "n_warmup_steps": 5
+    },
     "params": [
-      {"type": "float", "path": "training.optimizer.lr", "low": 1e-4, "high": 3e-2, "log": true},
-      {"type": "float", "path": "training.optimizer.weight_decay", "low": 1e-6, "high": 1e-2, "log": true},
-      {"type": "categorical", "path": "training.optimizer.type", "choices": ["adam", "adamw"]},
-      {"type": "categorical", "path": "data.batch_size", "choices": [256, 512, 1024]},
-      {"type": "float", "path": "augmentation.label_sigma_s", "low": 0.05, "high": 0.3}
+      {
+        "type": "float",
+        "path": "training.optimizer.lr",
+        "low": 0.0001,
+        "high": 0.03,
+        "log": true
+      },
+      {
+        "type": "float",
+        "path": "training.optimizer.weight_decay",
+        "low": 1e-06,
+        "high": 0.01,
+        "log": true
+      },
+      {
+        "type": "categorical",
+        "path": "training.optimizer.type",
+        "choices": [
+          "adam",
+          "adamw"
+        ]
+      },
+      {
+        "type": "categorical",
+        "path": "data.batch_size",
+        "choices": [
+          256,
+          512,
+          1024
+        ]
+      },
+      {
+        "type": "float",
+        "path": "augmentation.label_sigma_s",
+        "low": 0.05,
+        "high": 0.3
+      }
     ]
   }
 }
