@@ -154,16 +154,23 @@ Known defects and limits in the reference code. Fix these when porting:
   class has a docstring. A test fails on an undocumented field. After
   changing config fields or CLI options, regenerate the reference pages
   (`uv run python scripts/gen_reference.py`); a test fails when they are
-  stale. Preview the docs with `uvx zensical serve`; do not add Zensical to
-  `pyproject.toml` from the cluster (it would rewrite `uv.lock`).
-- Lint and format:
-  `uv run pre-commit run --all-files` (ruff check, ruff format).
+  stale. Preview the docs with `uvx zensical serve`.
+- Lint and format: `uv run pre-commit run --all-files` or
+  `prek run --all-files` (ruff check, ruff format, file hygiene). CI
+  (`.github/workflows/ci.yml`) runs the same hooks with prek and the test
+  suite on every push to `main` and every pull request.
+- Update `uv.lock` only with a uv at least as new as the one that wrote it;
+  an older uv rewrites the whole file in its own format.
 - Full inline type annotations are required in our code: every function
   signature and class attribute (ruff `ANN` enforces the signatures). There
   are no separate stub files; do not add `.pyi` stubs for third-party
   packages such as seisbench or `optuna_integration`.
 - Import seisbench (it pulls in torch) only where data or models are
   actually loaded, so that config handling and the CLI stay fast.
+- With pandas 3, `Series.to_numpy()` can return read-only arrays; combine
+  masks with `a = a | b`, not `a |= b`. Timestamps parse at microsecond
+  resolution: convert to seconds with `(t - epoch) / pd.Timedelta("1s")`,
+  not `astype("int64") / 1e9`.
 - Tests use the in-package synthetic dataset; they must not download data.
   Tests that need the pretrained `original` PhaseNet skip when it can't be
   downloaded; otherwise set `evaluation.baseline` to `null` in test configs.
@@ -198,45 +205,31 @@ Known defects and limits in the reference code. Fix these when porting:
   log with `serialization_format="pickle"` (plus an `input_example`).
 - The cluster uses conda. Do not assume `uv` in the Slurm scripts.
 
-## On the GFZ cluster
+## Running on a Slurm cluster
 
-- All GPU nodes of `qdefault` sit in the reservation `GPU`. A GPU job
-  without `--reservation=GPU` never starts, and squeue shows the misleading
-  reason `Priority`. Submit with
-  `sbatch --reservation=GPU slurm/train.sbatch <config>`.
-- The conda env has an editable install, so jobs run the code of the main
-  checkout as it is when they start (and import some modules late, e.g. at
-  the end of training). Do not edit, merge or switch branches in the main
-  checkout while jobs are queued or running; use a git worktree instead.
-- The version (setuptools-scm) is fixed at install time. After every
-  commit, run `pip install -e . --no-deps` in the conda env, or runs log a
-  stale version. Commit before launching runs: a dirty tree gives a
-  `.dYYYYMMDD` version that does not identify the code.
-- Compute nodes have no git executable; the package version carries the
-  commit. MLflow's "Failed to import Git" warnings in the job logs are
-  harmless.
-- pytest is not in the conda env. Run the tests against it with
-  `uv run --no-project --python <conda env>/bin/python --with pytest python -m pytest`.
-  There, `tests/test_hpo.py::test_two_workers_share_one_study` fails with
-  `FileNotFoundError .../bin/seisbench-trainer` (it looks for the console
-  script next to the interpreter); that is the environment, not the code.
-  To test a worktree, put its `src` first with `PYTHONPATH`, otherwise the
-  editable install of the main checkout is imported.
-- The cluster's `uv` (0.6) rewrites the whole `uv.lock` in an older
-  format. Do not run `uv lock` there; update the lock on the laptop.
-- The Rich progress bar does not reach the Slurm log while a run is going.
-  Follow progress in the MLflow metrics (one `det/f1_mean` row per epoch).
-- With pandas 3, `Series.to_numpy()` can return read-only arrays; combine
-  masks with `a = a | b`, not `a |= b`.
-- Jobs that start together and log to a new experiment race to create it
-  in the folder store; `tracking.run.set_experiment` then joins the oldest
-  experiment of that name, and the empty duplicates stay behind.
+- Keep site-specific notes (partitions, reservations, paths, local folders)
+  in an untracked `CLAUDE.local.md` at the repository root (it is in
+  `.gitignore`), never in the docs, AGENTS.md or the configs.
+- With an editable install, jobs run the code of the checkout as it is when
+  they start (and import some modules late, e.g. at the end of training).
+  Do not edit, merge or switch branches in that checkout while jobs are
+  queued or running; use a git worktree instead.
 - To run a worktree's code in jobs, export `PYTHONPATH=<worktree>/src` and
   write its version metadata first, in the worktree:
   `uv run --no-project --with setuptools --with setuptools-scm python -c "import setuptools; setuptools.setup()" egg_info`.
   Without that step the jobs log the version of the main checkout's install.
+- The version (setuptools-scm) is fixed at install time. After every
+  commit, run `pip install -e . --no-deps` in the job environment, or runs
+  log a stale version. Commit before launching runs: a dirty tree gives a
+  `.dYYYYMMDD` version that does not identify the code.
+- The progress bar is shown only on a terminal. Follow a running job in the
+  MLflow metrics (one `det/f1_mean` row per epoch).
+- Jobs that start together and log to a new experiment race to create it
+  in a folder store; `tracking.run.set_experiment` then joins the oldest
+  experiment of that name, and the empty duplicates stay behind.
 - Experiment findings that set defaults are in `docs/experiments.md`.
-  Add new ones there, with the MLflow experiment and the commit.
+  Add new ones there, with the MLflow experiment and the commit, without
+  local paths.
 
 ## Working rules
 

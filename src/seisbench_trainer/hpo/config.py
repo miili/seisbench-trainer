@@ -18,7 +18,7 @@ from pydantic import (
     model_validator,
 )
 
-from seisbench_trainer.schema import StrictModel
+from seisbench_trainer.schema import StrictModel, UserPath
 
 if TYPE_CHECKING:
     import optuna
@@ -191,7 +191,7 @@ class HPOConfig(StrictModel):
         description="Optuna study, shared by all workers; also the MLflow "
         "parent run name (hpo-<study>)."
     )
-    storage: Path = Field(
+    storage: UserPath = Field(
         default=Path("optuna.journal"),
         description="Optuna journal file, shared by all workers of the study "
         "(on the shared filesystem on a cluster).",

@@ -491,7 +491,7 @@ ahead).
 - `TrainConfig.with_values()` gives each trial's config (validated, no `hpo`
   section). Trials always run with `evaluation.test_at_end` off.
 - Storage: `JournalStorage(JournalFileBackend(path, JournalFileOpenLock))`.
-  The O_EXCL lock works on NFS (the cluster home is NFS on VAST). A second
+  The O_EXCL lock works on NFS (NFS). A second
   lock file (`<journal>.setup`) makes sure only one worker creates the
   study's MLflow parent run; its ID is a study user attribute.
 - `train()` takes `splits`, `parent_run_id` and extra `callbacks`. Pruning

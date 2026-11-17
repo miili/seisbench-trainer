@@ -282,6 +282,19 @@ def test_example_configs_are_valid(path: Path) -> None:
     load_config(path)
 
 
+def test_paths_expand_the_home_directory() -> None:
+    config = TrainConfig.model_validate(
+        {
+            "data": {"datasets": [{"type": "local", "path": "~/datasets/x"}]},
+            "training": {"checkpoint_dir": "~/checkpoints"},
+        }
+    )
+    dataset = config.data.datasets[0]
+    assert isinstance(dataset, LocalDataset)
+    assert dataset.path == Path.home() / "datasets" / "x"
+    assert config.training.checkpoint_dir == Path.home() / "checkpoints"
+
+
 def test_every_config_field_is_documented() -> None:
     # the descriptions are the parameter reference (docs/reference/config.md)
     schema = TrainConfig.model_json_schema()

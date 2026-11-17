@@ -41,11 +41,3 @@ mlflow ui --backend-store-uri file:///shared/mlruns --port 5000
   metrics-only model folder there, which breaks MLflow's lookup of the model
   by `models:/<id>`. Refer to models by their training run ID: the trainer
   then loads them from their own artifact location.
-
-## GFZ cluster
-
-- GPU nodes are in the reservation `GPU`: add `--reservation=GPU`, or the
-  job never starts (squeue shows the misleading reason `Priority`).
-- The head node allows 3 CPU cores; run tests and smoke runs as Slurm jobs.
-- Compute nodes have no git; MLflow's "Failed to import Git" warnings are
-  harmless.

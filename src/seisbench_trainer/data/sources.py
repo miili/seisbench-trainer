@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Annotated, Literal
 from pydantic import Field, NonNegativeInt, PositiveFloat, PositiveInt
 
 from seisbench_trainer.data.preprocessing import PreprocessingStep, query_mask
-from seisbench_trainer.schema import StrictModel
+from seisbench_trainer.schema import StrictModel, UserPath
 
 # seisbench imports torch, which takes seconds. It is imported only when a
 # dataset is actually loaded, so that config handling stays fast.
@@ -91,7 +91,10 @@ class LocalDataset(StrictModel):
     """A SeisBench-format dataset in a local directory."""
 
     type: Literal["local"] = "local"
-    path: Path = Field(description="Directory with metadata.csv and waveforms.hdf5.")
+    path: UserPath = Field(
+        description="Directory with metadata.csv and waveforms.hdf5; ~ is the "
+        "home directory."
+    )
     query: str | None = Field(
         default=None,
         description="Optional pandas query on the metadata to select traces.",

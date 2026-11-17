@@ -3,7 +3,7 @@
     "datasets": [
       {
         "type": "local",
-        "path": "/home/isken/.seisbench/datasets/deeplowfrequency"
+        "path": "~/.seisbench/datasets/deeplowfrequency"
       }
     ],
     "component_order": "ZNE",

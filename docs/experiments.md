@@ -94,7 +94,7 @@ scheduler (factor 0.5) and early stopping. Best-epoch scores:
 
 MLflow experiment `deeplowfrequency/PhaseNet-e2e` (two experiments of
 that name: the jobs raced to create it, fixed in `set_experiment`); code
-`7f12a62`; configs and `summary.py` in `~/sbt-runs/deeplowfrequency/`.
+`7f12a62`.
 Dataset: local `deeplowfrequency` (129,637 traces, 100 Hz, ZNE; 99.7k
 deep low-frequency event traces of about 120 s with the picks near 60 s,
 29.9k noise traces of 60 s; seisbench splits 90.5k / 13.3k / 25.9k).
@@ -143,8 +143,7 @@ sigma 0.1 s, plateau 5, stop 15, at most 100 epochs), one seed (42).
   about 1. Before `7f12a62` one NaN made the loss NaN and the run
   exported a model with F1 0; non-finite samples are now set to zero and
   a NaN loss stops the run. The 36 all-NaN traces (27 train) are blank
-  windows with pick labels; they should be removed from the dataset
-  (list: `~/sbt-runs/deeplowfrequency/nonfinite_traces.csv`).
+  windows with pick labels; they should be removed from the dataset.
 
 After this suite the defaults became: `normalization` std (for PhaseNet
 a no-op: `annotate_batch_pre` normalizes each channel again by the
@@ -158,8 +157,8 @@ suite on these defaults with the augmentations ablated.
 ### The suite on the new defaults
 
 MLflow experiment `deeplowfrequency/PhaseNet-e2e-v2`, code `dbba5fd`
-(one experiment: the race fix held for 12 jobs started together),
-configs in `~/sbt-runs/deeplowfrequency/configs-v2/`. Best epochs:
+(one experiment: the race fix held for 12 jobs started together). Best
+epochs:
 
 | run | epochs | det/f1_mean | F1 P / S | P thr | pick MAE P / S |
 | --- | --- | --- | --- | --- | --- |
@@ -207,7 +206,7 @@ Missing (all-zero) components get no noise in either. `channel_dropout`
 ### Real noise on noisy validation; label sigma in seconds or samples
 
 MLflow experiment `deeplowfrequency/PhaseNet-noise-sigma`, code
-`c4d470c`, configs in `~/sbt-runs/deeplowfrequency/configs-v3/`. Defaults
+`c4d470c`. Defaults
 as above (rotate 0.5, real noise 0.5 `peak`, dropout 0.2, sigma 0.1 s).
 `noisy` is `noisy/det/f1_mean` at the epoch the clean F1 selected; the
 volpick baseline scores 0.807 clean and 0.585 noisy.
@@ -249,11 +248,9 @@ evaluated on noisier data than its own validation split.
 
 ## 2026-11-13: against the DLF v4b reference model
 
-MLflow experiment `deeplowfrequency/PhaseNet-vs-v4b`, code `8f8cab1`,
-configs in `~/sbt-runs/deeplowfrequency/configs-v4/`. The baseline of every
-run is v4b (`~/tmp/PhaseNet_DLF/reference_model/phasenet_dlf_v4b_original.json`),
-the picker of the Laacher See DLF catalogue: volpick fine-tuned on the same
-21,983 events (training code `~/tmp/PhaseNet_DLF/3_training/`).
+MLflow experiment `deeplowfrequency/PhaseNet-vs-v4b`, code `8f8cab1`.
+The baseline of every run is v4b, the picker of the Laacher See DLF
+catalogue: volpick fine-tuned on the same 21,983 events.
 
 **Splits:** `deeplowfrequency` was split anew, not like v4b. v4b trained on
 3,050 of our 4,397 test events (13,751 of 19,937 test traces) and on 1,564
@@ -309,8 +306,8 @@ pick window always, real noise `std`, dropout 0.2, no rotation, N weight 1,
 
 ## 2026-11-13: 60 s of context (50 Hz) on deeplowfrequency
 
-MLflow experiment `deeplowfrequency/PhaseNet-60s`, code `e3e8026`, configs
-in `~/sbt-runs/deeplowfrequency/configs-v5/`. The winning recipe of the v4b
+MLflow experiment `deeplowfrequency/PhaseNet-60s`, code `e3e8026`. The
+winning recipe of the v4b
 comparison (rotate, real noise `peak`, dropout, `unread`) with 60 s input
 windows, two ways: 50 Hz (volpick time-stretched, 3001 samples = 60 s;
 `pick_window` 120 s) and 100 Hz with `augmentation.window_s` 60 (6000
@@ -318,7 +315,7 @@ samples, which PhaseNet accepts; 6001 it does not).
 
 **Scoring across rates.** Window F1 depends on the window length, so all
 models were scored two ways: `evaluate` on 60 s dev windows (100 Hz models
-with `window_s` 60), and `annotate_eval.py` (in the run folder): every dev
+with `window_s` 60), and a whole-trace annotation script: every dev
 trace (about 120 s per event trace) annotated whole with `model.annotate`,
 as qseek runs the exported model, then scored with the same detection
 metrics and the `unread` mask. The second is the deployment number.
@@ -353,8 +350,8 @@ Deployment (`annotate`, dev, F1 at the dev-optimal threshold):
 
 ## 2026-11-13: the new defaults on the new BohemiaSaxony
 
-MLflow experiment `BohemiaSaxony-v2/PhaseNet-defaults`, code `e3e8026`,
-configs in `~/sbt-runs/bohemiasaxony-v2/configs/`. The dataset was rebuilt:
+MLflow experiment `BohemiaSaxony-v2/PhaseNet-defaults`, code `e3e8026`.
+The dataset was rebuilt:
 329,173 traces (253k earthquake, 76k real noise of 120 s), 100 Hz ZNE,
 102 GB; 44,883 traces have S only and 8,910 P only. From scratch, ZNE, Adam
 0.003, otherwise the defaults (rotate, real noise `peak`, dropout, std,
@@ -426,13 +423,12 @@ volpick; A is `PhaseNet-60s`; test `det/f1_mean` under all events, seeds 42 /
 0.2 s A 0.823 / 0.824, B 0.823 / 0.825, **C 0.827 / 0.828**. S pick MAE about
 3 ms better with C.
 
-**qseek, deeplowfrequency** (`~/2026-DLF/qseek`, 2021-11-01 to 2022-01-01,
+**qseek, deeplowfrequency** (Eifel network, 2021-11-01 to 2022-01-01,
 sigma 0.3 s): C 23 / 24 deep located events and 19 / 21 in deep clusters, A
 25 / 25 and 20 / 19, B 22 / 22 and 14 / 18; semblance median C 0.49-0.51,
 A 0.48. About 25 events: a tie.
 
-**qseek, West Bohemia swarm** (`~/2026-ELISE/qseek-experiments`,
-2025-12-04 to 2025-12-18, the reference search with only the picker
+**qseek, West Bohemia swarm** (2025-12-04 to 2025-12-18, the reference search with only the picker
 changed; located = uncertainty <= 2 km horizontal and 1 km vertical):
 
 | picker | located | of the catalogue | semblance, 3058 common events | unc. h median |
@@ -458,9 +454,6 @@ events (4-6 pairs within 2 s).
 - **Default**: `label_events: all_events`, `max_sp_s: 15` (local and volcanic
   data; raise it for regional data). Compare earlier runs only under one
   ground truth: re-score them with `evaluate`, which now uses all events.
-- `~/sbt-runs/deeplowfrequency/false_vs_catalog.py` divides microsecond
-  timestamps by 1e9 (pandas 3), so its matches are wrong; use
-  `data.arrivals.StationPicks` instead.
 
 ## Reference recipes
 

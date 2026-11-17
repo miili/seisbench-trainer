@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 
 class StrictModel(BaseModel):
@@ -15,3 +16,6 @@ class StrictModel(BaseModel):
 
 Fraction = Annotated[float, Field(ge=0.0, le=1.0)]
 """A probability or share, from 0 to 1."""
+
+UserPath = Annotated[Path, AfterValidator(Path.expanduser)]
+"""A path in which ``~`` stands for the home directory."""

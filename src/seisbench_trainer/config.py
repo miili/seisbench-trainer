@@ -20,7 +20,7 @@ from seisbench_trainer.data import AugmentationConfig, DataConfig
 from seisbench_trainer.data.steps import NoisyValidation
 from seisbench_trainer.hpo.config import HPOConfig, set_path
 from seisbench_trainer.models import ModelConfig, PhaseNetConfig
-from seisbench_trainer.schema import StrictModel
+from seisbench_trainer.schema import StrictModel, UserPath
 from seisbench_trainer.training.optim import (
     AdamConfig,
     CosineConfig,
@@ -86,7 +86,7 @@ class TrainingConfig(StrictModel):
         default_factory=PlateauConfig,
         description="Learning-rate schedule. None keeps the rate constant.",
     )
-    checkpoint_dir: Path = Field(
+    checkpoint_dir: UserPath = Field(
         default=Path("checkpoints"),
         description="Local or scratch directory for Lightning checkpoints. "
         "They are not uploaded to MLflow.",

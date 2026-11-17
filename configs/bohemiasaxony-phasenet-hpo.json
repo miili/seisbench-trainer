@@ -30,7 +30,7 @@
   },
   "hpo": {
     "study_name": "bohemiasaxony-phasenet-original",
-    "storage": "/home/isken/sbt-runs/optuna/bohemiasaxony-phasenet-original.journal",
+    "storage": "optuna/bohemiasaxony-phasenet-original.journal",
     "n_trials": 40,
     "sampler": {
       "type": "tpe",

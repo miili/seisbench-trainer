@@ -91,7 +91,7 @@ A SeisBench-format dataset in a local directory.
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `path` | path | required | Directory with metadata.csv and waveforms.hdf5. |
+| `path` | path | required | Directory with metadata.csv and waveforms.hdf5; ~ is the home directory. |
 | `query` | string \| null | `null` | Optional pandas query on the metadata to select traces. |
 | `preprocessing` | list[[Filter](#filter) \| [Resplit](#resplit)] | `[]` | Steps applied in order after the query and before the dataset is split: filter, resplit. |
 
