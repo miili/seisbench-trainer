@@ -26,7 +26,7 @@ a ready-to-use SeisBench model.
 
 </div>
 
-![PhaseNet sweeping over a three-component seismogram with two overlapping events; P and S probabilities rise at every arrival](assets/images/hero.svg){ .sbt-hero__image }
+![PhaseNet as a U-Net: a three-component seismogram with two overlapping events goes down the encoder and up the decoder, and comes out as P, S and noise probabilities that peak at every arrival](assets/images/hero.svg){ .sbt-hero__image }
 
 </div>
 
@@ -41,73 +41,102 @@ a ready-to-use SeisBench model.
 
 ## Why seisbench-trainer
 
-<div class="grid cards" markdown>
+<div class="grid cards sbt-cards" markdown>
 
--   :lucide-database:{ .lg .middle } __Any dataset, any start__
-
-    ---
-
-    Any `seisbench.data` dataset or your own SeisBench-format folder, alone
-    or combined, queried and resplit; from scratch or from pretrained
-    weights.
-
-    [:octicons-arrow-right-24: Data](guide/data.md)
-
--   :lucide-file-json:{ .lg .middle } __One file, good defaults__
+-   :lucide-audio-waveform:{ .lg .middle } __Every event in the window labelled__
 
     ---
 
-    Name your data; every other setting has a default that won an
-    experiment. `seisbench-trainer config` checks a file before anything
-    runs.
+    In a swarm, a window cut around one event often holds the next. Read
+    from its metadata row, those arrivals are taught as noise. The trainer
+    finds every catalogued pick by station and time and labels it.
 
-    [:octicons-arrow-right-24: Configuration](guide/configuration.md)
-
--   :lucide-chart-line:{ .lg .middle } __Measured every epoch__
-
-    ---
-
-    Pick accuracy and detection scores against a pretrained baseline, on
-    clean and noise-added windows; the test split stays untouched.
-
-    [:octicons-arrow-right-24: Evaluation](guide/evaluation.md)
-
--   :lucide-audio-waveform:{ .lg .middle } __Every event labelled__
-
-    ---
-
-    When events follow closely, other events' arrivals fall into a training
-    window. They are found by station and time and labelled, not taught as
-    noise.
+    **+17 %** located events in a qseek swarm benchmark, **+0.012** test F1
+    { .sbt-proof }
 
     [:octicons-arrow-right-24: Labels](guide/labels.md)
 
--   :lucide-package:{ .lg .middle } __Ready to use__
+-   :lucide-flask-conical:{ .lg .middle } __Defaults that won experiments__
 
     ---
 
-    The best model is a SeisBench `.json`/`.pt` pair with its thresholds:
-    `PhaseNet.load()`, `annotate`, `classify`, and tools built on them.
+    Loss weights, learning rate, run length, augmentation and label width
+    were settled by experiments on tectonic swarms and deep
+    low-frequency events. A config names only what differs.
+
+    **`{}`** is a complete config: PhaseNet from scratch on ETHZ
+    { .sbt-proof }
+
+    [:octicons-arrow-right-24: Findings](findings/index.md)
+
+-   :lucide-chart-line:{ .lg .middle } __Scored against the pretrained model__
+
+    ---
+
+    Every epoch: pick residuals in seconds and detection F1 per phase, on
+    clean windows and with real noise added, next to the pretrained
+    baseline. Thresholds come from the dev split; test is scored once.
+
+    **0.70 → 0.86** validation detection F1 on BohemiaSaxony, pretrained → trained
+    { .sbt-proof }
+
+    [:octicons-arrow-right-24: Evaluation](guide/evaluation.md)
+
+-   :lucide-database:{ .lg .middle } __Any dataset, checked against the model__
+
+    ---
+
+    SeisBench datasets by name, your own folders, or several in one run;
+    queried, resplit with events kept together. Component order and
+    sampling rate must match the model: a mismatch is an error, not a
+    silent channel swap.
+
+    ```json
+    "datasets": [
+      {"type": "seisbench", "name": "ETHZ"},
+      {"type": "local", "path": "~/data/mine"}
+    ]
+    ```
+
+    [:octicons-arrow-right-24: Data](guide/data.md)
+
+-   :lucide-package:{ .lg .middle } __A SeisBench model at the end__
+
+    ---
+
+    The best epoch is exported as a `.json`/`.pt` pair that carries its
+    component order, sampling rate and validation thresholds. Load it in
+    SeisBench, or hand it to qseek.
+
+    ```python
+    model = sbm.PhaseNet.load(path)
+    picks = model.classify(stream).picks
+    ```
 
     [:octicons-arrow-right-24: Tracking and models](guide/tracking.md)
 
--   :lucide-bot:{ .lg .middle } __Laptop to cluster, scripted__
+-   :lucide-server:{ .lg .middle } __Laptop to Slurm, scripted__
 
     ---
 
-    The same config runs on a CPU or as a Slurm job; Optuna studies share
-    many workers. `--json` results and exit codes let scripts and agents
-    drive it.
+    The same file trains on a CPU or as a Slurm job, with MLflow in a shared
+    folder and no server. Optuna workers share one study. `--json` and exit
+    codes let scripts and agents drive it.
 
-    [:octicons-arrow-right-24: Scripts and agents](guide/automation.md)
+    ```bash
+    sbatch --array=0-3 \
+      slurm/hpo_worker.sbatch run.json
+    ```
+
+    [:octicons-arrow-right-24: Slurm cluster](guide/cluster.md)
 
 </div>
 
 ## How it works
 
-Three stages, each building block one section of the config:
+Six building blocks in three stages, each labelled with its config section:
 
-![The workflow: prepare, train, deliver](assets/images/workflow.svg){ .sbt-figure .sbt-wide }
+![The building blocks: config and data; labels, model, training and validation, repeated by HPO; the SeisBench model; MLflow records every block](assets/images/workflow.svg){ .sbt-figure .sbt-wide }
 
 ## What you get
 

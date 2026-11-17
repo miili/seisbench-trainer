@@ -20,7 +20,7 @@
 /* hero: text left, animation right; stacked on narrow screens */
 .md-typeset .sbt-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
   align-items: center;
   gap: 2.4rem;
   margin: 1.2rem 0 2rem;
@@ -140,6 +140,39 @@
 /* card icons in the accent colour */
 .md-typeset .grid.cards .lg.middle {
   color: var(--sbt-sky);
+}
+
+/* feature cards: evidence line and link pinned to the bottom */
+.md-typeset .grid.cards.sbt-cards > ul > li {
+  display: flex;
+  flex-direction: column;
+}
+
+.md-typeset .sbt-cards .sbt-proof,
+.md-typeset .sbt-cards .highlight {
+  margin: auto 0 0;
+}
+
+.md-typeset .sbt-cards > ul > li > :last-child {
+  padding-top: 0.6rem;
+}
+
+.md-typeset .sbt-cards .highlight code {
+  font-size: 0.68rem;
+}
+
+.md-typeset .sbt-proof {
+  padding: 0.45rem 0.7rem;
+  border-left: 0.15rem solid var(--sbt-amber);
+  border-radius: 0 0.4rem 0.4rem 0;
+  background: color-mix(in srgb, var(--sbt-amber) 9%, transparent);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.md-typeset .sbt-proof strong {
+  color: var(--sbt-amber);
+  font-weight: 800;
 }
 
 @media screen and (max-width: 30em) {
