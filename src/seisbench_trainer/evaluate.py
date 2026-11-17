@@ -40,7 +40,7 @@ from seisbench_trainer.metrics.picks import PickScores, detect_picks, pick_accur
 from seisbench_trainer.metrics.scores import at_threshold, best_threshold, summarize
 from seisbench_trainer.models import ModelConfig
 from seisbench_trainer.models.base import input_order
-from seisbench_trainer.tracking.run import TRAIN_CONFIG, dataset_label
+from seisbench_trainer.tracking.run import TRAIN_CONFIG, dataset_label, logged_model
 from seisbench_trainer.units import seconds_to_samples
 
 logger = logging.getLogger(__name__)
@@ -84,16 +84,8 @@ def _model_source(ref: str) -> tuple[str, str]:
     in its own experiment.
     """
     if RUN_ID.fullmatch(ref):
-        # search the run's experiment: the default is only the active one
-        experiment_id = mlflow.get_run(ref).info.experiment_id
-        models = mlflow.search_logged_models(
-            experiment_ids=[experiment_id],
-            filter_string=f"source_run_id = '{ref}'",
-            output_format="list",
-        )
-        if not models:
-            raise ValueError(f"run {ref} has no logged model")
-        return models[0].model_id, models[0].artifact_location
+        model = logged_model(ref)
+        return model.model_id, model.artifact_location
     name = ref.removeprefix("models:/")
     model_id = name if name.startswith("m-") else get_model_info(ref).model_id
     return model_id, f"models:/{model_id}"

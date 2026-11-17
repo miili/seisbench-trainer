@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 import mlflow
 import numpy as np
 import seisbench.models as sbm
+from mlflow.entities import LoggedModel
 from mlflow.pytorch import (  # mlflow leaves its model parameter untyped
     log_model,
 )
@@ -26,6 +27,23 @@ DESCRIPTION = "mlflow.note.content"
 TRAIN_CONFIG = "train_config.json"
 """The run config, stored in the logged model's ``extra_files``."""
 SLURM_VARIABLES = ("SLURM_JOB_ID", "SLURM_ARRAY_JOB_ID", "SLURM_ARRAY_TASK_ID")
+
+
+def logged_model(run_id: str) -> LoggedModel:
+    """The model a training run logged.
+
+    Searched in the run's own experiment: ``search_logged_models`` looks only
+    in the active one by default.
+    """
+    experiment_id = mlflow.get_run(run_id).info.experiment_id
+    models = mlflow.search_logged_models(
+        experiment_ids=[experiment_id],
+        filter_string=f"source_run_id = '{run_id}'",
+        output_format="list",
+    )
+    if not models:
+        raise ValueError(f"run {run_id} has no logged model")
+    return models[0]
 
 
 def dataset_label(config: TrainConfig) -> str:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -43,6 +44,12 @@ from seisbench_trainer.units import seconds_to_samples
 logger = logging.getLogger(__name__)
 
 
+def _interactive() -> bool:
+    """Whether logs go to a terminal: progress bars only flood files and pipes
+    (Slurm logs, agents)."""
+    return sys.stderr.isatty()
+
+
 def _callbacks(
     config: TrainConfig, evaluation: EvaluationCallback, checkpoint: ModelCheckpoint
 ) -> list[Callback]:
@@ -51,8 +58,9 @@ def _callbacks(
         evaluation,
         checkpoint,
         LearningRateMonitor(logging_interval="epoch"),
-        RichProgressBar(),
     ]
+    if _interactive():
+        callbacks.append(RichProgressBar())
     if training.early_stopping_patience is not None:
         callbacks.append(
             EarlyStopping(
@@ -179,6 +187,7 @@ def train(
             ),
             callbacks=[*_callbacks(config, evaluation, checkpoint), *callbacks],
             log_every_n_steps=min(50, len(train_loader)),
+            enable_progress_bar=_interactive(),
         )
         trainer.fit(module, train_loader, dev_loaders)
         mlflow.flush_async_logging()
