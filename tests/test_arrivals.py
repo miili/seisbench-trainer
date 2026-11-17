@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import pytest
 import seisbench.data as sbd
 
@@ -127,10 +129,24 @@ def test_pick_samples_keep_every_event() -> None:
     assert row[:2].tolist() == [100.0, 600.0] and np.isnan(row[2:]).all()
 
 
-def test_all_events_needs_start_times(synthetic_path: Path) -> None:
-    config = DataConfig(datasets=[LocalDataset(path=synthetic_path)])
-    with pytest.raises(ValueError, match="trace_start_time"):
+def test_all_events_needs_start_times(synthetic_path: Path, tmp_path: Path) -> None:
+    path = tmp_path / "no-start-times"
+    shutil.copytree(synthetic_path, path)
+    metadata = pd.read_csv(path / "metadata.csv")
+    metadata.drop(columns="trace_start_time").to_csv(path / "metadata.csv", index=False)
+    config = DataConfig(datasets=[LocalDataset(path=path)])
+    with pytest.raises(ValueError, match=r"trace_start_time.*trace_event"):
         load_splits(config, preload=False, label_events="all_events")
+
+
+def test_synthetic_traces_do_not_overlap(synthetic_path: Path) -> None:
+    # the synthetic dataset works with the all_events default: no trace
+    # holds another trace's picks
+    found = arrivals(synthetic_path)
+    assert found
+    for phases in found.values():
+        for _, events in phases.values():
+            assert set(events) <= {0}
 
 
 def test_max_sp_bounds_the_unread_stretches() -> None:

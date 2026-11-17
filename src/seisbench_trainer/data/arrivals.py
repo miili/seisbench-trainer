@@ -57,7 +57,8 @@ class StationPicks:
         missing = [c for c in REQUIRED_COLUMNS if c not in metadata.columns]
         if missing:
             raise ValueError(
-                f"label_events 'all_events' needs metadata columns {missing}"
+                f"label_events 'all_events' needs metadata columns {missing}; "
+                "set augmentation.label_events to 'trace_event' for this dataset"
             )
         names = metadata["trace_name"].astype(str)
         if names.duplicated().any():

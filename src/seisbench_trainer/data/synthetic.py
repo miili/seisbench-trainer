@@ -13,6 +13,7 @@ import seisbench.data as sbd
 from numpy.typing import NDArray
 
 COMPONENT_ORDER = "ZNE"
+START = np.datetime64("2020-01-01T00:00:00", "ms")
 SPLIT_PROBABILITIES = {"train": 0.7, "dev": 0.15, "test": 0.15}
 
 
@@ -47,6 +48,7 @@ def write_synthetic_dataset(
     n_samples = round(trace_length_s * sampling_rate)
     wavelet = _wavelet(round(3.0 * sampling_rate), sampling_rate, 5.0, 0.4)
     splits = list(SPLIT_PROBABILITIES)
+    gap = np.timedelta64(round(2000 * trace_length_s), "ms")
     probabilities = list(SPLIT_PROBABILITIES.values())
 
     with sbd.WaveformDataWriter(
@@ -66,6 +68,8 @@ def write_synthetic_dataset(
                 "split": str(rng.choice(splits, p=probabilities)),
                 "station_network_code": "SY",
                 "station_code": f"S{index % 10:02d}",
+                # one trace after the other: no trace overlaps another
+                "trace_start_time": f"{START + gap * index}Z",
                 "trace_sampling_rate_hz": sampling_rate,
             }
             if rng.random() >= noise_fraction:

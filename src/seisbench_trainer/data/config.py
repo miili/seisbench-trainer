@@ -111,23 +111,26 @@ class AugmentationConfig(StrictModel):
     )
     label_shape: LabelShape = "gaussian"
     max_sp_s: PositiveFloat | None = Field(
-        default=None,
+        default=15.0,
         description="Longest S-P time. With missing_picks='unread', an event's "
         "unread P is looked for only this far before its S, and an unread S "
         "this far after its P, instead of up to the window edge, which in a "
         "multi-event window would also hide the other events' arrivals from the "
-        "loss. None: up to the window edge. BohemiaSaxony: 99.9 % of the S-P "
-        "times are below 14.7 s.",
+        "loss. None: up to the window edge. The default suits local and "
+        "volcanic seismicity (99.9 % of the S-P times below 14.7 s on "
+        "BohemiaSaxony, 12 s on deeplowfrequency); raise it for regional data.",
     )
     label_events: LabelEvents = Field(
-        default="trace_event",
+        default="all_events",
         description="Whose arrivals are labelled, and scored in validation and "
         "test. 'trace_event': only the event the trace was cut for (its metadata "
         "row; seisbench's behaviour). 'all_events': also every other event "
         "recorded at the same station with an arrival inside the trace, so that "
         "in a swarm the other events are not labelled noise and their "
-        "detections not counted as false picks. Needs trace_start_time, "
-        "trace_sampling_rate_hz and the station codes in the metadata.",
+        "detections not counted as false picks (docs/experiments.md, "
+        "2026-11-17: better F1, pick times and qseek catalogues). Needs "
+        "trace_start_time, trace_sampling_rate_hz and the station codes in the "
+        "metadata; set 'trace_event' for a dataset without them.",
     )
     missing_picks: Literal["unread", "absent"] = Field(
         default="unread",

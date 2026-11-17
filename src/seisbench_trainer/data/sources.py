@@ -138,7 +138,10 @@ class SyntheticDataset(StrictModel):
 
     def path(self) -> Path:
         """Cache directory, unique for the generation parameters."""
-        params = self.model_dump_json(exclude={"query", "preprocessing"}).encode()
+        # the suffix changes with the file layout: traces with start times
+        params = (
+            self.model_dump_json(exclude={"query", "preprocessing"}) + "v2"
+        ).encode()
         digest = hashlib.sha256(params).hexdigest()[:12]
         return Path(tempfile.gettempdir()) / "seisbench-trainer" / f"synthetic-{digest}"
 
