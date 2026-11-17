@@ -45,8 +45,8 @@ Decisions already made:
   by its path, one line each), 1 for a failed run. Keep it that way, and
   keep the command set small.
 - Documentation is a Zensical site in `docs/` (`zensical.toml`), published
-  to GitHub Pages by `.github/workflows/docs.yml`. Update the guide pages
-  when behaviour changes.
+  to GitHub Pages by `.github/workflows/docs.yml` when a commit on `main` is
+  tagged `v*`. Update the guide pages when behaviour changes.
 - PyTorch Lightning for training.
 - Optuna for HPO, but only as the optional `[hpo]` extra.
 - Data is always preloaded into RAM.

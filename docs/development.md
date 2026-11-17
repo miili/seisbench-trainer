@@ -58,8 +58,10 @@ intended one.
 ## Documentation
 
 The site is built with [Zensical](https://zensical.org) from `docs/` and
-published to GitHub Pages by `.github/workflows/docs.yml` on every push to
-`main`.
+published to GitHub Pages by `.github/workflows/docs.yml` when a commit on
+`main` is tagged with a version (`v*`, e.g. `git tag v0.2.0 && git push
+origin v0.2.0`); the tag is also the package version. The site therefore
+shows the documentation of the latest release, not of `main`.
 
 ```bash
 uv run python scripts/gen_reference.py   # after changing config fields or CLI options
