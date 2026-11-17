@@ -1,6 +1,8 @@
 # Publish the documentation to GitHub Pages when a commit on main is tagged
 # with a version (v*, e.g. v0.2.0); the tag is also the package version.
-# Enable Pages once: Settings -> Pages -> Source: GitHub Actions.
+# Set up once: Settings -> Pages -> Source: GitHub Actions, and allow the
+# tags in Settings -> Environments -> github-pages -> deployment branches and
+# tags: add the tag rule "v*" (by default only main may deploy).
 # The config and CLI reference pages are generated and committed
 # (scripts/gen_reference.py), so the build needs only Zensical.
 name: Documentation
