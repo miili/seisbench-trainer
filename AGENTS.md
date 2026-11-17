@@ -120,6 +120,12 @@ Known defects and limits in the reference code. Fix these when porting:
   test split for model selection, threshold selection or HPO.
 - **Thresholds:** select detection thresholds on the validation set and apply
   them unchanged to the test set.
+- **Arrivals:** a metadata row holds only its own event. Labels, unread
+  masks and pick metrics read the per-trace arrival arrays of
+  `data.arrivals` (`phases.phase_arrivals`), which by default include every
+  catalogued event at the station inside the trace
+  (`augmentation.label_events`). Never read pick columns directly after the
+  `Arrivals` step, and compare runs only under the same ground truth.
 - **Exported models:** save the best model as a SeisBench `.json`/`.pt` pair
   (`model.save(path)`), so that `sbm.<Model>.load()` and Qseek can use it
   directly.

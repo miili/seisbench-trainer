@@ -389,6 +389,79 @@ seed-42 windows):
   the noise) but costs 0.008 s P pick MAE; the impulsive tectonic onsets
   want 0.1 s (the default), the emergent DLF onsets 0.2 s.
 
+## 2026-11-17: labelling every event in the window (`label_events`)
+
+A metadata row holds only its own event. SeisBench's labeller, and ours
+before `e6a62b0`, therefore label the arrivals of other events in a window
+noise, and the metrics count their detections as false picks. Matched by
+station and absolute time: 25 % of the BohemiaSaxony event traces have
+another event's pick within 30 s of their own (deeplowfrequency 15 %; noise
+traces none). Code `05557a3` / `ad01e9a` (branch `label-events`):
+`augmentation.label_events` `trace_event` (the row) or `all_events` (every
+event at the station with an arrival in the trace), the unread mask per event,
+and `max_sp_s` to bound it. Arms, two seeds each: A `trace_event` (the old
+runs), B `trace_event` + `max_sp_s` 15, C `all_events` + `max_sp_s` 15.
+Everything scored with `evaluate` on the same seed-42 windows, under the old
+ground truth (`trace_event`) and the full one (`all_events`).
+
+**The old ground truth.** The old BohemiaSaxony model scored with all
+arrivals: 21-23 % more true picks, a third of its false picks (2967 -> 1990
+on dev P) are other events' arrivals, precision +0.06, F1 0.864 -> 0.902 (P),
+and the F1-optimal threshold 0.475 -> 0.275. Validation scores and selected
+thresholds of earlier runs are biased low and high. deeplowfrequency: F1 +0.01
+(P) and +0.03 (S).
+
+**BohemiaSaxony** (`BohemiaSaxony-v2/PhaseNet-label-events`; A is
+`PhaseNet-defaults`; test `det/f1_mean`, mean of two seeds):
+
+| arm | all events | trace event | pick MAE P / S (all events) |
+| --- | --- | --- | --- |
+| A `trace_event` | 0.888 | **0.853** | 19.0 / 29.8 ms |
+| B + `max_sp_s` 15 | 0.889 | 0.853 | 19.4 / 30.8 ms |
+| C `all_events` + `max_sp_s` 15 | **0.900** | 0.836 | **18.2 / 28.6 ms** |
+
+**deeplowfrequency** (`deeplowfrequency/PhaseNet-label-events`, 50 Hz
+volpick; A is `PhaseNet-60s`; test `det/f1_mean` under all events, seeds 42 /
+43): sigma 0.3 s A 0.824 / 0.825, B 0.826 / 0.828, **C 0.831 / 0.831**; sigma
+0.2 s A 0.823 / 0.824, B 0.823 / 0.825, **C 0.827 / 0.828**. S pick MAE about
+3 ms better with C.
+
+**qseek, deeplowfrequency** (`~/2026-DLF/qseek`, 2021-11-01 to 2022-01-01,
+sigma 0.3 s): C 23 / 24 deep located events and 19 / 21 in deep clusters, A
+25 / 25 and 20 / 19, B 22 / 22 and 14 / 18; semblance median C 0.49-0.51,
+A 0.48. About 25 events: a tie.
+
+**qseek, West Bohemia swarm** (`~/2026-ELISE/qseek-experiments`,
+2025-12-04 to 2025-12-18, the reference search with only the picker
+changed; located = uncertainty <= 2 km horizontal and 1 km vertical):
+
+| picker | located | of the catalogue | semblance, 3058 common events | unc. h median |
+| --- | --- | --- | --- | --- |
+| `bohemia-saxony-retrained` (catalogue) | 3301 | 1.000 | 0.640 | 0.97 km |
+| A seeds 42 / 43 | 4479 / 4215 | 0.974 / 0.972 | 0.820 / 0.807 | 1.10 km |
+| B seeds 42 / 43 | 4102 / 4437 | 0.967 / 0.972 | 0.799 / 0.819 | 1.10 km |
+| C seeds 42 / 43 | **5201 / 5119** | 0.955 / 0.955 | **0.926 / 0.894** | 1.14 km |
+
+The reference picker's rerun reproduces the catalogue (5584 events). Every
+model detects nearly all catalogue events: the "missed" ones (C 150, A 90)
+are detected but located just above the cut-off. C's extra events have higher
+semblance (median 0.58, A's 0.47) and magnitude than A's, and C does not split
+events (4-6 pairs within 2 s).
+
+- **Labelling every event wins**: +0.012 F1 on BohemiaSaxony, +0.004-0.006
+  on deeplowfrequency, better pick times on both, and in the swarm 17 % more
+  located events at 0.09 higher semblance. It costs precision only under the
+  old ground truth, where its correct detections of other events count as
+  false.
+- **The mask bound alone does nothing** (B = A); it keeps the unread mask of
+  one event from hiding the others' arrivals.
+- **Default**: `label_events: all_events`, `max_sp_s: 15` (local and volcanic
+  data; raise it for regional data). Compare earlier runs only under one
+  ground truth: re-score them with `evaluate`, which now uses all events.
+- `~/sbt-runs/deeplowfrequency/false_vs_catalog.py` divides microsecond
+  timestamps by 1e9 (pandas 3), so its matches are wrong; use
+  `data.arrivals.StationPicks` instead.
+
 ## Reference recipes
 
 - PhaseNet (Zhu & Beroza 2019, doi:10.1093/gji/ggy423): softmax
