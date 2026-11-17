@@ -1,7 +1,7 @@
 # Documentation site, built with Zensical (https://zensical.org).
 #   uvx zensical serve     preview at http://localhost:8000
 #   uvx zensical build     the site in ./site
-# Published to GitHub Pages by .github/workflows/docs.yml.
+# Published to GitHub Pages by .github/workflows/docs.yml when main is tagged.
 
 [project]
 site_name = "seisbench-trainer"
@@ -12,10 +12,13 @@ repo_name = "miili/seisbench-trainer"
 edit_uri = "edit/main/docs/"
 docs_dir = "docs"
 site_dir = "site"
+extra_css = ["assets/stylesheets/extra.css"]
 nav = [
   { "Home" = "index.md" },
-  { "Getting started" = "getting-started.md" },
+  { "Quickstart" = "quickstart.md" },
+  { "Installation" = "getting-started.md" },
   { "Guide" = [
+    "guide/index.md",
     { "Configuration" = "guide/configuration.md" },
     { "Data" = "guide/data.md" },
     { "Labels" = "guide/labels.md" },
@@ -27,15 +30,16 @@ nav = [
     { "Scripts and agents" = "guide/automation.md" },
   ] },
   { "Reference" = [
+    "reference/index.md",
     { "Config" = "reference/config.md" },
     { "CLI" = "reference/cli.md" },
   ] },
   { "Findings" = [
-    { "Summary" = "findings.md" },
+    "findings/index.md",
     { "Experiment log" = "experiments.md" },
   ] },
   { "Development" = [
-    { "Contributing" = "development.md" },
+    "development/index.md",
     { "Requirements" = "requirements.md" },
     { "Implementation plan" = "plan.md" },
   ] },
@@ -43,6 +47,8 @@ nav = [
 
 [project.theme]
 language = "en"
+icon.logo = "lucide/audio-waveform"
+icon.repo = "lucide/code"
 features = [
   "content.action.edit",
   "content.code.copy",
@@ -67,12 +73,16 @@ toggle.name = "Switch to light mode"
 [[project.theme.palette]]
 media = "(prefers-color-scheme: light)"
 scheme = "default"
+primary = "indigo"
+accent = "amber"
 toggle.icon = "lucide/sun"
 toggle.name = "Switch to dark mode"
 
 [[project.theme.palette]]
 media = "(prefers-color-scheme: dark)"
 scheme = "slate"
+primary = "indigo"
+accent = "amber"
 toggle.icon = "lucide/moon"
 toggle.name = "Switch to system preference"
 
@@ -86,6 +96,8 @@ md_in_html = {}
 tables = {}
 toc.permalink = true
 pymdownx.details = {}
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
 pymdownx.highlight.anchor_linenums = true
 pymdownx.highlight.pygments_lang_class = true
 pymdownx.inlinehilite = {}

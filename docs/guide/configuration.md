@@ -1,3 +1,7 @@
+---
+icon: lucide/sliders-horizontal
+---
+
 # Configuration
 
 A run is described by one JSON file, validated by

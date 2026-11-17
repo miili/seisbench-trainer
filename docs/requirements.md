@@ -1,3 +1,7 @@
+---
+icon: lucide/list-checks
+---
+
 # Requirements: seisbench-trainer
 
 Status: draft for review (2026-11-08). The IDs (`FR-*`, `NFR-*`, `D-*`) are

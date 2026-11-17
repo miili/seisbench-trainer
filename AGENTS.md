@@ -46,7 +46,13 @@ Decisions already made:
   keep the command set small.
 - Documentation is a Zensical site in `docs/` (`zensical.toml`), published
   to GitHub Pages by `.github/workflows/docs.yml` when a commit on `main` is
-  tagged `v*`. Update the guide pages when behaviour changes.
+  tagged `v*`.
+- **The docs always follow and reflect the code.** A change to behaviour,
+  defaults, config fields, CLI commands or outputs is not done until the
+  guide pages, the quickstart, the examples and the figures say the same;
+  regenerate the reference pages, and never document what the code does
+  not do. When docs and code disagree, the code is right and the docs are
+  the bug.
 - PyTorch Lightning for training.
 - Optuna for HPO, but only as the optional `[hpo]` extra.
 - Data is always preloaded into RAM.

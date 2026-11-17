@@ -1,3 +1,7 @@
+---
+icon: lucide/activity
+---
+
 # Training
 
 ## Model and starting weights

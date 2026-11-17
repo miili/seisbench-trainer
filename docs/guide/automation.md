@@ -1,3 +1,7 @@
+---
+icon: lucide/bot
+---
+
 # Scripts and agents
 
 The CLI is built to be driven by scripts and coding agents as well as by

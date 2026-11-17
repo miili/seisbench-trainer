@@ -1,3 +1,7 @@
+---
+icon: lucide/database
+---
+
 # Data
 
 ## Sources
@@ -60,7 +64,7 @@ the decoded waveforms at `data.sampling_rate`: BohemiaSaxony (329k traces of
    `real_noise`, `channel_dropout`, `add_gap`, `gaussian_noise`.
 
 The defaults follow SeisBench's pick-benchmark PhaseNet recipe plus the
-perturbations that held up in our experiments ([Findings](../findings.md)):
+perturbations that held up in our experiments ([Findings](../findings/index.md)):
 
 ```json
 [

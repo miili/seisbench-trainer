@@ -1,3 +1,7 @@
+---
+icon: lucide/tag
+---
+
 # Labels
 
 PhaseNet learns from a target curve per output channel: P, S and noise. This

@@ -49,7 +49,7 @@ and an MLflow folder store on the shared filesystem
 | [Getting started](docs/getting-started.md) | Install, a first run, your own config |
 | [Guide](docs/guide/configuration.md) | Configuration, data, labels, training, evaluation, tracking, HPO, cluster, automation |
 | [Config reference](docs/reference/config.md) | Every field, its default and meaning (generated) |
-| [Findings](docs/findings.md) | What the experiments established; the [experiment log](docs/experiments.md) |
-| [Development](docs/development.md) | Code layout, checks, docs; rules in [AGENTS.md](AGENTS.md) |
+| [Findings](docs/findings/index.md) | What the experiments established; the [experiment log](docs/experiments.md) |
+| [Development](docs/development/index.md) | Code layout, checks, docs; rules in [AGENTS.md](AGENTS.md) |
 
 Preview the site locally with `uvx zensical serve`.

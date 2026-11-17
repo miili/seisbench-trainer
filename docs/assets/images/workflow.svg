@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" role="img" aria-labelledby="wt wd">
+<title id="wt">The seisbench-trainer workflow</title>
+<desc id="wd">Three stages. Prepare: a JSON config, datasets, and the arrivals of every event in a trace. Train: training windows and labels, PhaseNet, training with validation every epoch, repeated by HPO. Deliver: the best model, MLflow tracking, and using the model in SeisBench or qseek.</desc>
+<defs>
+<linearGradient id="wbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1222"/><stop offset="1" stop-color="#16213f"/></linearGradient>
+<marker id="arr0" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#38bdf8"/></marker>
+<marker id="arr1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#a78bfa"/></marker>
+<marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#34d399"/></marker>
+</defs>
+<style>
+.t{font:700 19px system-ui,-apple-system,Segoe UI,sans-serif;fill:#f1f5f9}
+.d{font:400 13.5px system-ui,-apple-system,Segoe UI,sans-serif;fill:#a8b5cc}
+.k{font:600 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.h{font:800 15px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.14em}
+.n{font:800 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#0b1222}
+.hpo{font:600 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#c4b5fd}
+.card{fill:#131d36;stroke-width:1.2}
+.flow{fill:none;stroke-width:2.2;stroke-dasharray:7 9;stroke-linecap:round;
+  animation:flow 1.6s linear infinite}
+.flow2{animation-delay:-.8s}
+.glow{animation:glow 4.8s ease-in-out infinite}
+@keyframes flow{to{stroke-dashoffset:-32}}
+@keyframes glow{0%,100%{stroke-opacity:.35}50%{stroke-opacity:.9}}
+@media (prefers-reduced-motion:reduce){.flow,.glow{animation:none}}
+</style>
+<rect width="1200" height="660" rx="18" fill="url(#wbg)"/>
+<rect class="glow" x="414" y="52" width="372" height="602" rx="22" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5 7"/>
+<text class="hpo" x="600.0" y="642" text-anchor="middle">hpo: Optuna repeats this stage with sampled values</text>
+<circle cx="54" cy="74" r="13" fill="#38bdf8"/>
+<text class="n" x="54" y="78.5" text-anchor="middle">1</text>
+<text class="h" x="76" y="79.5" fill="#38bdf8">PREPARE</text>
+<rect class="card" x="40" y="104" width="340" height="132" rx="14" stroke="#38bdf8" stroke-opacity=".45"/>
+<rect x="40" y="118" width="4" height="104" rx="2" fill="#38bdf8"/>
+<g transform="translate(62 122) scale(1.0833333333333333)" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1M14 18a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1 1 1 0 0 1-1-1v-1a1 1 0 0 0-1-1"/></g>
+<text class="t" x="100" y="142">One JSON config</text>
+<text class="d" x="62" y="174">Every field has a default:</text>
+<text class="d" x="62" y="193">name your data, check it, run it</text>
+<rect x="62" y="204" width="71" height="22" rx="6" fill="#38bdf8" fill-opacity=".12"/>
+<text class="k" x="68" y="219" fill="#38bdf8">run.json</text>
+<path class="flow" d="M210.0 242 V282" stroke="#38bdf8" marker-end="url(#arr0)"/>
+<rect class="card" x="40" y="290" width="340" height="132" rx="14" stroke="#38bdf8" stroke-opacity=".45"/>
+<rect x="40" y="304" width="4" height="104" rx="2" fill="#38bdf8"/>
+<g transform="translate(62 308) scale(1.0833333333333333)" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></g>
+<text class="t" x="100" y="328">Datasets</text>
+<text class="d" x="62" y="360">SeisBench or local, query, resplit;</text>
+<text class="d" x="62" y="379">resampled and preloaded once</text>
+<rect x="62" y="390" width="42" height="22" rx="6" fill="#38bdf8" fill-opacity=".12"/>
+<text class="k" x="68" y="405" fill="#38bdf8">data</text>
+<path class="flow flow2" d="M210.0 428 V468" stroke="#38bdf8" marker-end="url(#arr0)"/>
+<rect class="card" x="40" y="476" width="340" height="132" rx="14" stroke="#38bdf8" stroke-opacity=".45"/>
+<rect x="40" y="490" width="4" height="104" rx="2" fill="#38bdf8"/>
+<g transform="translate(62 494) scale(1.0833333333333333)" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 13a2 2 0 0 0 2-2V7a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0V4a2 2 0 0 1 4 0v13a2 2 0 0 0 4 0v-4a2 2 0 0 1 2-2"/></g>
+<text class="t" x="100" y="514">Arrivals</text>
+<text class="d" x="62" y="546">Every catalogued event at the station,</text>
+<text class="d" x="62" y="565">unread phases masked per event</text>
+<rect x="62" y="576" width="196" height="22" rx="6" fill="#38bdf8" fill-opacity=".12"/>
+<text class="k" x="68" y="591" fill="#38bdf8">augmentation.label_events</text>
+<rect x="322" y="494" width="42" height="20" rx="10" fill="#f59e0b"/>
+<text class="n" x="343" y="508" text-anchor="middle">new</text>
+<path class="flow" d="M384 542.0 C402.0 542.0 390.0 170.0 424 170.0" stroke="#a78bfa" marker-end="url(#arr1)"/>
+<circle cx="444" cy="74" r="13" fill="#a78bfa"/>
+<text class="n" x="444" y="78.5" text-anchor="middle">2</text>
+<text class="h" x="466" y="79.5" fill="#a78bfa">TRAIN</text>
+<rect class="card" x="430" y="104" width="340" height="132" rx="14" stroke="#a78bfa" stroke-opacity=".45"/>
+<rect x="430" y="118" width="4" height="104" rx="2" fill="#a78bfa"/>
+<g transform="translate(452 122) scale(1.0833333333333333)" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></g>
+<text class="t" x="490" y="142">Training windows</text>
+<text class="d" x="452" y="174">Pick window, crop, rotation,</text>
+<text class="d" x="452" y="193">real noise, channel dropout, labels</text>
+<rect x="452" y="204" width="144" height="22" rx="6" fill="#a78bfa" fill-opacity=".12"/>
+<text class="k" x="458" y="219" fill="#a78bfa">augmentation.train</text>
+<path class="flow" d="M600.0 242 V282" stroke="#a78bfa" marker-end="url(#arr1)"/>
+<rect class="card" x="430" y="290" width="340" height="132" rx="14" stroke="#a78bfa" stroke-opacity=".45"/>
+<rect x="430" y="304" width="4" height="104" rx="2" fill="#a78bfa"/>
+<g transform="translate(452 308) scale(1.0833333333333333)" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 18V5M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4M17.707 6.294A3 3 0 1 0 12 5a3 3 0 1 0-5.707 1.294"/><path d="M17.996 5.125a4 4 0 0 1 2.526 5.77"/><path d="M18 18a4 4 0 0 0 2-7.465"/><path d="M19.967 17.482a4 4 0 1 1-7.967.517 4 4 0 1 1-7.967-.517"/><path d="M6 18a4 4 0 0 1-2-7.465"/><path d="M6.004 5.125a4 4 0 0 0-2.526 5.77"/></g>
+<text class="t" x="490" y="328">PhaseNet</text>
+<text class="d" x="452" y="360">From scratch or pretrained weights;</text>
+<text class="d" x="452" y="379">cross-entropy, noise weighted 0.5</text>
+<rect x="452" y="390" width="50" height="22" rx="6" fill="#a78bfa" fill-opacity=".12"/>
+<text class="k" x="458" y="405" fill="#a78bfa">model</text>
+<path class="flow flow2" d="M600.0 428 V468" stroke="#a78bfa" marker-end="url(#arr1)"/>
+<rect class="card" x="430" y="476" width="340" height="132" rx="14" stroke="#a78bfa" stroke-opacity=".45"/>
+<rect x="430" y="490" width="4" height="104" rx="2" fill="#a78bfa"/>
+<g transform="translate(452 494) scale(1.0833333333333333)" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></g>
+<text class="t" x="490" y="514">Train &amp; validate</text>
+<text class="d" x="452" y="546">Lightning, Adam, plateau, early stop;</text>
+<text class="d" x="452" y="565">scored every epoch against a baseline</text>
+<rect x="452" y="576" width="166" height="22" rx="6" fill="#a78bfa" fill-opacity=".12"/>
+<text class="k" x="458" y="591" fill="#a78bfa">training · evaluation</text>
+<path class="flow" d="M774 542.0 C792.0 542.0 780.0 170.0 814 170.0" stroke="#34d399" marker-end="url(#arr2)"/>
+<circle cx="834" cy="74" r="13" fill="#34d399"/>
+<text class="n" x="834" y="78.5" text-anchor="middle">3</text>
+<text class="h" x="856" y="79.5" fill="#34d399">DELIVER</text>
+<rect class="card" x="820" y="104" width="340" height="132" rx="14" stroke="#34d399" stroke-opacity=".45"/>
+<rect x="820" y="118" width="4" height="104" rx="2" fill="#34d399"/>
+<g transform="translate(842 122) scale(1.0833333333333333)" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3M4 22h16"/><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z"/><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3"/></g>
+<text class="t" x="880" y="142">Best model</text>
+<text class="d" x="842" y="174">Selected on det/f1_mean (dev split),</text>
+<text class="d" x="842" y="193">thresholds picked on validation</text>
+<rect x="842" y="204" width="130" height="22" rx="6" fill="#34d399" fill-opacity=".12"/>
+<text class="k" x="848" y="219" fill="#34d399">training.monitor</text>
+<path class="flow" d="M990.0 242 V282" stroke="#34d399" marker-end="url(#arr2)"/>
+<rect class="card" x="820" y="290" width="340" height="132" rx="14" stroke="#34d399" stroke-opacity=".45"/>
+<rect x="820" y="304" width="4" height="104" rx="2" fill="#34d399"/>
+<g transform="translate(842 308) scale(1.0833333333333333)" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></g>
+<text class="t" x="880" y="328">MLflow</text>
+<text class="d" x="842" y="360">Config, versions, metrics, figures:</text>
+<text class="d" x="842" y="379">every run reproducible from its record</text>
+<rect x="842" y="390" width="71" height="22" rx="6" fill="#34d399" fill-opacity=".12"/>
+<text class="k" x="848" y="405" fill="#34d399">tracking</text>
+<path class="flow flow2" d="M990.0 428 V468" stroke="#34d399" marker-end="url(#arr2)"/>
+<rect class="card" x="820" y="476" width="340" height="132" rx="14" stroke="#34d399" stroke-opacity=".45"/>
+<rect x="820" y="490" width="4" height="104" rx="2" fill="#34d399"/>
+<g transform="translate(842 494) scale(1.0833333333333333)" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"/><path d="M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"/></g>
+<text class="t" x="880" y="514">Use it</text>
+<text class="d" x="842" y="546">SeisBench .json/.pt for annotate, qseek;</text>
+<text class="d" x="842" y="565">test and other datasets: evaluate</text>
+<rect x="842" y="576" width="203" height="22" rx="6" fill="#34d399" fill-opacity=".12"/>
+<text class="k" x="848" y="591" fill="#34d399">seisbench-trainer evaluate</text>
+</svg>

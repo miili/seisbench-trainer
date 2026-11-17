@@ -1,3 +1,7 @@
+---
+icon: lucide/flask-conical
+---
+
 # Experiments
 
 Findings that set defaults in the code. Each entry names the runs, so the

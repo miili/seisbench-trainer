@@ -1,3 +1,7 @@
+---
+icon: lucide/package
+---
+
 # Tracking and models
 
 ## What a run logs

@@ -1,0 +1,111 @@
+/* Landing page and figures. Colours follow the SVGs: sky (P), amber (S). */
+
+:root {
+  --sbt-sky: #38bdf8;
+  --sbt-amber: #f59e0b;
+  --sbt-violet: #a78bfa;
+}
+
+/* hero: text left, animation right; stacked on narrow screens */
+.md-typeset .sbt-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: 2.4rem;
+  margin: 1.2rem 0 2rem;
+}
+
+@media screen and (max-width: 60em) {
+  .md-typeset .sbt-hero {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+}
+
+.md-typeset .sbt-eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sbt-sky);
+}
+
+.md-typeset h1.sbt-title {
+  margin: 0 0 1rem;
+  font-size: 2.3rem;
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  background: linear-gradient(100deg, var(--md-default-fg-color) 30%, var(--sbt-sky) 75%, var(--sbt-amber));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.md-typeset h1.sbt-title .headerlink {
+  display: none;
+}
+
+.md-typeset .sbt-hero__text > p:not(.sbt-eyebrow) {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.md-typeset .sbt-hero__text .md-button {
+  margin: 0.4rem 0.4rem 0 0;
+}
+
+.md-typeset .sbt-hero__image,
+.md-typeset .sbt-figure {
+  display: block;
+  width: 100%;
+  border-radius: 0.9rem;
+  box-shadow: 0 0.8rem 2.4rem rgba(11, 18, 34, 0.28);
+}
+
+/* matplotlib figures are white: give them a frame in both themes */
+.md-typeset .sbt-figure--light {
+  max-width: 46rem;
+  margin: 0 auto;
+  background: #fff;
+  padding: 0.6rem;
+}
+
+/* four key numbers under the hero */
+.md-typeset .sbt-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 0 0 2.4rem;
+}
+
+@media screen and (max-width: 60em) {
+  .md-typeset .sbt-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.md-typeset .sbt-stats > div {
+  padding: 0.9rem 1rem;
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.7rem;
+}
+
+.md-typeset .sbt-stats strong {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--sbt-sky);
+}
+
+.md-typeset .sbt-stats span {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--md-default-fg-color--light);
+}
+
+/* card icons in the accent colour */
+.md-typeset .grid.cards .lg.middle {
+  color: var(--sbt-sky);
+}

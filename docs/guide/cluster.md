@@ -1,3 +1,7 @@
+---
+icon: lucide/server
+---
+
 # Slurm cluster
 
 The scripts in `slurm/` run one job per GPU with a conda environment and an

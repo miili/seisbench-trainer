@@ -1,3 +1,7 @@
+---
+icon: lucide/map
+---
+
 # Implementation plan: seisbench-trainer
 
 This plan implements `docs/requirements.md` (the IDs in brackets refer to

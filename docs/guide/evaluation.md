@@ -1,3 +1,7 @@
+---
+icon: lucide/chart-line
+---
+
 # Evaluation
 
 ## Two metric families
@@ -44,11 +48,24 @@ trace. It measures robustness; model selection stays on the clean windows.
 
 ## Figures
 
-Every `plot_every_n_epochs` epochs the run logs one figure per phase:
-residual histogram, detection scores against threshold, ROC and a summary
-table, the trained model next to the baseline. All epochs go into one HTML
-page per phase with a slider (`evaluation/validation_P.html`), and the best
-epoch's figures go with the exported model.
+Every `plot_every_n_epochs` epochs the run logs one figure per phase, the
+trained model (blue) next to the baseline (grey). All epochs go into one HTML
+page per phase with an epoch slider (`evaluation/validation_P.html` in the
+MLflow run), and the best epoch's figures go with the exported model.
+
+![P-phase validation figure of PhaseNet trained on BohemiaSaxony with all events labelled, next to the pretrained original PhaseNet](../assets/images/validation-P.png)
+
+*P phase, best epoch of PhaseNet trained from scratch on BohemiaSaxony with
+`label_events: all_events` (blue), against the pretrained `original`
+PhaseNet (grey), on the same validation windows. The
+[S-phase figure](../assets/images/validation-S.png) has the same layout.*
+
+| Panel | Shows | Read it as |
+| --- | --- | --- |
+| **a** Pick residuals | Predicted minus true pick time within ±`pick_window_s`, on the sample grid; shaded ±`min(test_tolerances_s)` | A narrow peak at 0: precise picks. Here 94.5 % within 0.1 s |
+| **b** Detection | F1, precision and recall of the detection metrics against the threshold; the dot is the F1-optimal threshold | A broad F1 plateau: a threshold that is easy to choose and robust in deployment |
+| **c** Pick-window ROC | True picks against the pick-free traces' maximum probability | Close to the top-left corner: picks stand out from noise |
+| **d** Summary | Detection at the optimal threshold, pick-window statistics; the better value per row in bold | The numbers behind a-c |
 
 ## Test and cross-dataset evaluation
 

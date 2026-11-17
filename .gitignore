@@ -26,3 +26,4 @@ site/
 
 # local, site-specific notes (cluster, paths); never commit
 CLAUDE.local.md
+.cache/

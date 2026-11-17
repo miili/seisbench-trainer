@@ -1,3 +1,7 @@
+---
+icon: lucide/sparkles
+---
+
 # Hyperparameter search
 
 Needs the optional extra: `pip install 'seisbench-trainer[hpo]'` (Optuna).

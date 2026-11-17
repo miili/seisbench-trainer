@@ -1,3 +1,7 @@
+---
+icon: lucide/wrench
+---
+
 # Development
 
 The rules for working on the code, for people and coding agents alike, are
@@ -8,7 +12,7 @@ in `AGENTS.md` at the repository root. The short version:
   a class with a `type` tag that builds its own runtime object. To extend the
   trainer, add a member to a union; no `if`/`elif` dispatch, no registries.
 - **Every config field has a `Field(description=...)`** and every config
-  class a docstring. They are the [config reference](reference/config.md)
+  class a docstring. They are the [config reference](../reference/config.md)
   and the schema of `seisbench-trainer config --schema`; a test fails on an
   undocumented field.
 - **Seconds become samples in one place** (`units.seconds_to_samples`, with
@@ -74,11 +78,11 @@ fails when they are out of date.
 ## Experiments
 
 Experiments that set a default are recorded in the
-[experiment log](experiments.md): the question, the MLflow experiment, the
+[experiment log](../experiments.md): the question, the MLflow experiment, the
 commit, the numbers, and what was concluded. Commit before you start runs,
 so the logged version names the code.
 
 ## Design documents
 
-The [requirements](requirements.md) and the [implementation plan](plan.md)
+The [requirements](../requirements.md) and the [implementation plan](../plan.md)
 from the start of the project.
