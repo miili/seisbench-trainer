@@ -24,10 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # the ruff hooks run `uv run --frozen ruff`
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
-      - uses: j178/prek-action@v3
+      - uses: j178/prek-action@v3.1.1
 
   tests:
     name: tests
@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # setuptools-scm takes the version from the git history
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
       - run: uv sync --locked
