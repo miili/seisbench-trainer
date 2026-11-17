@@ -23,6 +23,10 @@ dependencies = [
     "typer>=0.17",
 ]
 
+[project.urls]
+Documentation = "https://miili.github.io/seisbench-trainer/"
+Repository = "https://github.com/miili/seisbench-trainer"
+
 [project.optional-dependencies]
 hpo = [
     "optuna>=4.5",
