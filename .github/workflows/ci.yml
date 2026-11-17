@@ -1,0 +1,44 @@
+# Lint (the pre-commit hooks, run by prek) and the test suite, on every push
+# to main and every pull request. The environment comes from uv.lock.
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    name: pre-commit (prek)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      # the ruff hooks run `uv run --frozen ruff`
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - uses: j178/prek-action@v3
+
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # setuptools-scm takes the version from the git history
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run pytest --durations=10
