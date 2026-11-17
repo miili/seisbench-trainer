@@ -20,3 +20,6 @@ mlartifacts/
 checkpoints/
 lightning_logs/
 *.ckpt
+
+# documentation build (zensical)
+site/

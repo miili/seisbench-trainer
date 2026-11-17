@@ -37,8 +37,16 @@ Decisions already made:
   dependencies, and `cli` sits on top. The architecture is in
   `docs/plan.md`.
 - CLI with Typer. All console output through Rich: `RichHandler` logging,
-  Rich tables, Lightning `RichProgressBar`. Only `cli.py` imports `typer`;
-  only `console.py` configures Rich.
+  Rich tables, Lightning `RichProgressBar` (on a terminal only). Only
+  `cli.py` imports `typer`; only `console.py` configures Rich.
+- The CLI is a contract for scripts and agents: results on stdout (with
+  `--json` one JSON object and nothing else), logs and library output on
+  stderr, exit code 2 for invalid input (a config error lists every problem
+  by its path, one line each), 1 for a failed run. Keep it that way, and
+  keep the command set small.
+- Documentation is a Zensical site in `docs/` (`zensical.toml`), published
+  to GitHub Pages by `.github/workflows/docs.yml`. Update the guide pages
+  when behaviour changes.
 - PyTorch Lightning for training.
 - Optuna for HPO, but only as the optional `[hpo]` extra.
 - Data is always preloaded into RAM.
@@ -141,6 +149,13 @@ Known defects and limits in the reference code. Fix these when porting:
   (synthetic data, CPU, under a minute; writes to `./mlflow.db`).
 - Every file in `configs/` is validated by the tests; keep them valid when
   the config schema changes.
+- Every config field has a `Field(..., description=...)` that says what it
+  does, its unit and, for a default set by an experiment, why; every config
+  class has a docstring. A test fails on an undocumented field. After
+  changing config fields or CLI options, regenerate the reference pages
+  (`uv run python scripts/gen_reference.py`); a test fails when they are
+  stale. Preview the docs with `uvx zensical serve`; do not add Zensical to
+  `pyproject.toml` from the cluster (it would rewrite `uv.lock`).
 - Lint and format:
   `uv run pre-commit run --all-files` (ruff check, ruff format).
 - Full inline type annotations are required in our code: every function
