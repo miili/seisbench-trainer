@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from pydantic import ValidationError
+from rich.markup import escape
 
 from seisbench_trainer import __version__
 from seisbench_trainer.config import TrainConfig, dump_config, load_config
@@ -73,10 +74,13 @@ def _load(path: Path) -> TrainConfig:
     try:
         return load_config(path)
     except ValidationError as error:
-        err_console.print(f"[red]{path}: invalid run config[/]")
+        err_console.print(f"[red]{escape(str(path))}: invalid run config[/]")
         for problem in error.errors():
             where = ".".join(str(part) for part in problem["loc"]) or "(file)"
-            err_console.print(f"  {where}: {problem['msg']}")
+            # one line per problem, never wrapped: easy to read for scripts
+            err_console.print(
+                escape(f"  {where}: {problem['msg']}"), soft_wrap=True, highlight=False
+            )
         raise typer.Exit(2) from None
 
 
