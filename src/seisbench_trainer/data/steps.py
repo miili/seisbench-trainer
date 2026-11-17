@@ -234,7 +234,9 @@ class PeakRatio(StrictModel):
     channels, so the ratio depends on how impulsive the event is."""
 
     type: Literal["peak"] = "peak"
-    ratio: Range = (0.0, 1.0)
+    ratio: Range = Field(
+        default=(0.0, 1.0), description="(low, high) of the peak ratio."
+    )
 
     def build(self) -> perturbations.PeakLevel:
         return perturbations.PeakLevel(*self.ratio)
@@ -246,7 +248,10 @@ class StdRatio(StrictModel):
     The dlf-catalog reference recipe: ratio 0.1 to 2."""
 
     type: Literal["std"] = "std"
-    ratio: Range = (0.1, 2.0)
+    ratio: Range = Field(
+        default=(0.1, 2.0),
+        description="(low, high) of the std ratio; both above 0.",
+    )
 
     @model_validator(mode="after")
     def _positive(self) -> Self:

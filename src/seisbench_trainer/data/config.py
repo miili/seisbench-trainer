@@ -58,7 +58,10 @@ class DataConfig(StrictModel):
         "picks). True matches the default of the models' annotate, so training "
         "and inference see the same filter.",
     )
-    batch_size: PositiveInt = 1024
+    batch_size: PositiveInt = Field(
+        default=1024,
+        description="Windows per batch, in training and evaluation.",
+    )
     num_workers: PositiveInt = Field(
         default=8, description="DataLoader workers. Must be at least 1."
     )
@@ -109,7 +112,11 @@ class AugmentationConfig(StrictModel):
     label_sigma_s: PositiveFloat = Field(
         default=0.1, description="Width of the pick label curve."
     )
-    label_shape: LabelShape = "gaussian"
+    label_shape: LabelShape = Field(
+        default="gaussian",
+        description="Shape of the label curve around a pick: Gaussian with std "
+        "label_sigma_s, triangle or box with half-width label_sigma_s.",
+    )
     max_sp_s: PositiveFloat | None = Field(
         default=15.0,
         description="Longest S-P time. With missing_picks='unread', an event's "

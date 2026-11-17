@@ -37,12 +37,21 @@ FIXED_PATHS = (
 
 
 class FloatParam(StrictModel):
+    """A float drawn from [low, high]."""
+
     type: Literal["float"] = "float"
-    path: str = Field(description="Dotted config path, e.g. 'training.optimizer.lr'.")
-    low: float
-    high: float
-    log: bool = False
-    step: PositiveFloat | None = None
+    path: str = Field(
+        description="Dotted config path, e.g. 'training.optimizer.lr'; list "
+        "items by index."
+    )
+    low: float = Field(description="Smallest value.")
+    high: float = Field(description="Largest value.")
+    log: bool = Field(
+        default=False, description="Sample on a log scale (rates, decays)."
+    )
+    step: PositiveFloat | None = Field(
+        default=None, description="Grid step; None samples continuously."
+    )
 
     @model_validator(mode="after")
     def _check_range(self) -> Self:
@@ -60,12 +69,14 @@ class FloatParam(StrictModel):
 
 
 class IntParam(StrictModel):
+    """An integer drawn from [low, high]."""
+
     type: Literal["int"] = "int"
-    path: str
-    low: int
-    high: int
-    log: bool = False
-    step: PositiveInt = 1
+    path: str = Field(description="Dotted config path, e.g. 'data.batch_size'.")
+    low: int = Field(description="Smallest value.")
+    high: int = Field(description="Largest value.")
+    log: bool = Field(default=False, description="Sample on a log scale.")
+    step: PositiveInt = Field(default=1, description="Grid step.")
 
     @model_validator(mode="after")
     def _check_range(self) -> Self:
@@ -83,9 +94,12 @@ class IntParam(StrictModel):
 
 
 class CategoricalParam(StrictModel):
+    """One of a list of scalars. Switch a union member by its type field,
+    e.g. path 'training.optimizer.type' with choices ['adam', 'adamw']."""
+
     type: Literal["categorical"] = "categorical"
-    path: str
-    choices: list[Scalar] = Field(min_length=1)
+    path: str = Field(description="Dotted config path.")
+    choices: list[Scalar] = Field(min_length=1, description="The candidates.")
 
     def suggest(self, trial: optuna.Trial) -> Scalar:
         return trial.suggest_categorical(self.path, self.choices)
@@ -100,9 +114,13 @@ ParamConfig = Annotated[
 
 
 class TPEConfig(StrictModel):
+    """Tree-structured Parzen estimator (Optuna's default)."""
+
     type: Literal["tpe"] = "tpe"
-    n_startup_trials: NonNegativeInt = 10
-    seed: int | None = None
+    n_startup_trials: NonNegativeInt = Field(
+        default=10, description="Random trials before TPE takes over."
+    )
+    seed: int | None = Field(default=None, description="Sampler seed; None draws one.")
 
     def build(self) -> optuna.samplers.BaseSampler:
         from optuna.samplers import TPESampler
@@ -111,8 +129,10 @@ class TPEConfig(StrictModel):
 
 
 class RandomConfig(StrictModel):
+    """Independent random sampling."""
+
     type: Literal["random"] = "random"
-    seed: int | None = None
+    seed: int | None = Field(default=None, description="Sampler seed; None draws one.")
 
     def build(self) -> optuna.samplers.BaseSampler:
         from optuna.samplers import RandomSampler
@@ -124,7 +144,9 @@ class MedianConfig(StrictModel):
     """Prune a trial below the median of earlier trials at the same epoch."""
 
     type: Literal["median"] = "median"
-    n_startup_trials: NonNegativeInt = 5
+    n_startup_trials: NonNegativeInt = Field(
+        default=5, description="Trials that are never pruned."
+    )
     n_warmup_steps: NonNegativeInt = Field(
         default=5, description="Epochs before a trial can be pruned."
     )
@@ -139,9 +161,15 @@ class MedianConfig(StrictModel):
 
 
 class HyperbandConfig(StrictModel):
+    """Hyperband: successive halving over several brackets."""
+
     type: Literal["hyperband"] = "hyperband"
-    min_resource: PositiveInt = Field(default=1, description="In epochs.")
-    reduction_factor: int = Field(default=3, ge=2)
+    min_resource: PositiveInt = Field(
+        default=1, description="Fewest epochs before a trial can be pruned."
+    )
+    reduction_factor: int = Field(
+        default=3, ge=2, description="Share of trials kept per rung: 1 / factor."
+    )
 
     def build(self) -> optuna.pruners.BasePruner:
         from optuna.pruners import HyperbandPruner
@@ -156,7 +184,13 @@ PrunerConfig = Annotated[MedianConfig | HyperbandConfig, Field(discriminator="ty
 
 
 class HPOConfig(StrictModel):
-    study_name: str
+    """Hyperparameter search with Optuna (the optional hpo extra). Every
+    trial is a full training run with the sampled values applied."""
+
+    study_name: str = Field(
+        description="Optuna study, shared by all workers; also the MLflow "
+        "parent run name (hpo-<study>)."
+    )
     storage: Path = Field(
         default=Path("optuna.journal"),
         description="Optuna journal file, shared by all workers of the study "
@@ -165,9 +199,19 @@ class HPOConfig(StrictModel):
     n_trials: PositiveInt = Field(
         default=20, description="Total number of trials over all workers."
     )
-    sampler: SamplerConfig = Field(default_factory=TPEConfig)
-    pruner: PrunerConfig | None = Field(default_factory=MedianConfig)
-    params: list[ParamConfig] = Field(min_length=1)
+    sampler: SamplerConfig = Field(
+        default_factory=TPEConfig, description="How trials draw values."
+    )
+    pruner: PrunerConfig | None = Field(
+        default_factory=MedianConfig,
+        description="Stops weak trials early on training.monitor. None never prunes.",
+    )
+    params: list[ParamConfig] = Field(
+        min_length=1,
+        description="The search space. The data and the objective are fixed: "
+        "data.datasets, data.component_order, data.sampling_rate, "
+        "augmentation.label_events and training.monitor cannot be tuned.",
+    )
 
     @model_validator(mode="after")
     def _check_paths(self) -> Self:

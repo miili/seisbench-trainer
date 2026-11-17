@@ -44,9 +44,23 @@ class TrainingConfig(StrictModel):
         default=100,
         description="Upper limit; early stopping usually ends the run sooner.",
     )
-    seed: int = 42
-    accelerator: Literal["auto", "cpu", "gpu"] = "auto"
-    precision: Literal["32-true", "16-mixed", "bf16-mixed"] = "32-true"
+    seed: int = Field(
+        default=42,
+        description="Seeds weights, the training augmentations and the fixed "
+        "validation and test windows. Runs with the same config and seed are "
+        "reproducible; compare settings with two seeds (run-to-run noise of "
+        "det/f1_mean is about 0.002).",
+    )
+    accelerator: Literal["auto", "cpu", "gpu"] = Field(
+        default="auto",
+        description="Lightning accelerator; a run always uses one device. "
+        "'auto' takes the GPU if there is one.",
+    )
+    precision: Literal["32-true", "16-mixed", "bf16-mixed"] = Field(
+        default="32-true",
+        description="Lightning precision. Mixed precision is faster on GPUs but "
+        "has not been compared against 32-true.",
+    )
     monitor: Monitor = Field(
         default="det/f1_mean",
         description="Validation metric that picks the best model: checkpointing, "
@@ -64,7 +78,10 @@ class TrainingConfig(StrictModel):
         "for early stopping and the plateau scheduler. 0.002 is the run-to-run "
         "noise of det/f1_mean on BohemiaSaxony; use about 0.0005 for val_loss.",
     )
-    optimizer: OptimizerConfig = Field(default_factory=AdamConfig)
+    optimizer: OptimizerConfig = Field(
+        default_factory=AdamConfig,
+        description="Optimizer and its learning rate ('adam' or 'adamw').",
+    )
     scheduler: SchedulerConfig | None = Field(
         default_factory=PlateauConfig,
         description="Learning-rate schedule. None keeps the rate constant.",
@@ -105,10 +122,22 @@ class EvaluationConfig(StrictModel):
         default=0.5, description="Matching tolerance of the detection metrics."
     )
     test_tolerances_s: list[PositiveFloat] = Field(
-        default_factory=lambda: [0.1, 0.2, 0.5], min_length=1
+        default_factory=lambda: [0.1, 0.2, 0.5],
+        min_length=1,
+        description="Matching tolerances of the test evaluation (one set of "
+        "scores each) and of the 'within_<t>s' pick-accuracy fractions.",
     )
-    min_peak_height: float = Field(default=0.05, gt=0.0, lt=1.0)
-    min_peak_distance_s: PositiveFloat = 1.0
+    min_peak_height: float = Field(
+        default=0.05,
+        gt=0.0,
+        lt=1.0,
+        description="Lowest probability peak that counts as a detection; the "
+        "threshold curves start above it.",
+    )
+    min_peak_distance_s: PositiveFloat = Field(
+        default=1.0,
+        description="Closer peaks of one phase are merged into the higher one.",
+    )
     edge_mask_s: NonNegativeFloat = Field(
         default=1.0,
         description="Samples this close to the trace edges are ignored for "
@@ -128,25 +157,59 @@ class EvaluationConfig(StrictModel):
     plot_every_n_epochs: NonNegativeInt = Field(
         default=1, description="0 disables the figures."
     )
-    test_at_end: bool = False
+    test_at_end: bool = Field(
+        default=False,
+        description="Evaluate the best model and the baseline on the test split "
+        "after training (thresholds from the dev split). HPO trials never do.",
+    )
 
 
 class TrackingConfig(StrictModel):
+    """Where the run is logged. The tracking server or folder comes from the
+    MLFLOW_TRACKING_URI environment variable, not from the config."""
+
     experiment: str | None = Field(
         default=None,
         description="MLflow experiment. None derives it from datasets and model.",
     )
-    run_name: str | None = None
-    tags: dict[str, str] = Field(default_factory=dict[str, str])
+    run_name: str | None = Field(
+        default=None, description="MLflow run name. None lets MLflow pick one."
+    )
+    tags: dict[str, str] = Field(
+        default_factory=dict[str, str],
+        description='Extra MLflow run tags, e.g. {"purpose": "lr-grid"}.',
+    )
 
 
 class TrainConfig(StrictModel):
-    data: DataConfig = Field(default_factory=DataConfig)
-    model: ModelConfig = Field(default_factory=PhaseNetConfig)
-    augmentation: AugmentationConfig = Field(default_factory=AugmentationConfig)
-    training: TrainingConfig = Field(default_factory=TrainingConfig)
-    evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
-    tracking: TrackingConfig = Field(default_factory=TrackingConfig)
+    """One training run. Every field has a default, so ``{}`` is a valid
+    config; ``seisbench-trainer config`` prints them all."""
+
+    data: DataConfig = Field(
+        default_factory=DataConfig,
+        description="Datasets, component order, sampling rate and loaders.",
+    )
+    model: ModelConfig = Field(
+        default_factory=PhaseNetConfig,
+        description="Picker model, its starting weights and its loss.",
+    )
+    augmentation: AugmentationConfig = Field(
+        default_factory=AugmentationConfig,
+        description="Training windows and perturbations, normalization and labels.",
+    )
+    training: TrainingConfig = Field(
+        default_factory=TrainingConfig,
+        description="Training loop: length, seed, optimizer, scheduler, model "
+        "selection.",
+    )
+    evaluation: EvaluationConfig = Field(
+        default_factory=EvaluationConfig,
+        description="Validation and test metrics, baseline model, figures.",
+    )
+    tracking: TrackingConfig = Field(
+        default_factory=TrackingConfig,
+        description="MLflow experiment, run name and tags.",
+    )
     hpo: HPOConfig | None = Field(
         default=None, description="Hyperparameter search; used by the hpo command."
     )

@@ -21,9 +21,14 @@ Mode = Literal["min", "max"]
 
 
 class AdamConfig(StrictModel):
+    """Adam. The default rate 0.001 tied the alternatives when fine-tuning;
+    the BohemiaSaxony runs from scratch used 0.003."""
+
     type: Literal["adam"] = "adam"
-    lr: PositiveFloat = 1e-3
-    weight_decay: NonNegativeFloat = 0.0
+    lr: PositiveFloat = Field(default=1e-3, description="Initial learning rate.")
+    weight_decay: NonNegativeFloat = Field(
+        default=0.0, description="L2 penalty, added to the gradients."
+    )
 
     def build(self, params: Iterator[Parameter]) -> Optimizer:
         from torch.optim import Adam
@@ -32,9 +37,13 @@ class AdamConfig(StrictModel):
 
 
 class AdamWConfig(StrictModel):
+    """AdamW: Adam with decoupled weight decay."""
+
     type: Literal["adamw"] = "adamw"
-    lr: PositiveFloat = 1e-3
-    weight_decay: NonNegativeFloat = 1e-2
+    lr: PositiveFloat = Field(default=1e-3, description="Initial learning rate.")
+    weight_decay: NonNegativeFloat = Field(
+        default=1e-2, description="Decoupled weight decay per step."
+    )
 
     def build(self, params: Iterator[Parameter]) -> Optimizer:
         from torch.optim import AdamW
@@ -51,7 +60,9 @@ class CosineConfig(StrictModel):
     """
 
     type: Literal["cosine"] = "cosine"
-    eta_min: NonNegativeFloat = 0.0
+    eta_min: NonNegativeFloat = Field(
+        default=0.0, description="Learning rate at the last epoch."
+    )
 
     def build(
         self,
@@ -77,7 +88,9 @@ class PlateauConfig(StrictModel):
     """
 
     type: Literal["plateau"] = "plateau"
-    factor: float = Field(default=0.5, gt=0.0, lt=1.0)
+    factor: float = Field(
+        default=0.5, gt=0.0, lt=1.0, description="Learning-rate factor per drop."
+    )
     patience: NonNegativeInt = Field(
         default=5,
         description="Epochs without improvement before the rate drops. 5 against "

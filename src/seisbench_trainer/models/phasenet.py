@@ -17,8 +17,15 @@ if TYPE_CHECKING:
 
 
 class PhaseNetConfig(PickerModelConfig):
+    """PhaseNet (Zhu & Beroza 2019): a U-Net with softmax outputs for P, S and
+    noise. Input 3001 samples (30 s at 100 Hz) unless
+    ``augmentation.window_s`` sets another length."""
+
     type: Literal["PhaseNet"] = "PhaseNet"
-    loss: PhaseNetLoss = Field(default_factory=CrossEntropyLoss)
+    loss: PhaseNetLoss = Field(
+        default_factory=CrossEntropyLoss,
+        description="Training loss on the model's logits.",
+    )
 
     def build(self, component_order: str, sampling_rate: float) -> sbm.PhaseNet:
         import seisbench.models as sbm

@@ -124,12 +124,23 @@ class SyntheticDataset(StrictModel):
     """Generated test data (noise plus P and S wavelets); no download needed."""
 
     type: Literal["synthetic"] = "synthetic"
-    n_traces: PositiveInt = 300
-    trace_length_s: float = Field(default=60.0, ge=30.0)
-    sampling_rate: PositiveFloat = 100.0
-    noise_fraction: float = Field(default=0.1, ge=0.0, lt=1.0)
-    seed: NonNegativeInt = 0
-    query: str | None = None
+    n_traces: PositiveInt = Field(default=300, description="Number of traces.")
+    trace_length_s: float = Field(
+        default=60.0, ge=30.0, description="Length of every trace."
+    )
+    sampling_rate: PositiveFloat = Field(
+        default=100.0, description="Rate the traces are written at, in Hz."
+    )
+    noise_fraction: float = Field(
+        default=0.1, ge=0.0, lt=1.0, description="Share of pure noise traces."
+    )
+    seed: NonNegativeInt = Field(
+        default=0, description="Seed of the generator; fixes the dataset."
+    )
+    query: str | None = Field(
+        default=None,
+        description="Optional pandas query on the metadata to select traces.",
+    )
     preprocessing: Preprocessing
 
     def label(self) -> str:

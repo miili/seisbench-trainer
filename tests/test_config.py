@@ -280,3 +280,17 @@ def test_cli_config_schema() -> None:
 )
 def test_example_configs_are_valid(path: Path) -> None:
     load_config(path)
+
+
+def test_every_config_field_is_documented() -> None:
+    # the descriptions are the parameter reference (docs/reference/config.md)
+    schema = TrainConfig.model_json_schema()
+    undocumented = []
+    for name, model in [("TrainConfig", schema), *schema["$defs"].items()]:
+        if model.get("type") == "object" and not model.get("description"):
+            undocumented.append(f"{name} (class docstring)")
+        for field, prop in model.get("properties", {}).items():
+            # a union member's type tag is documented by its class docstring
+            if field != "type" and not prop.get("description"):
+                undocumented.append(f"{name}.{field}")
+    assert not undocumented, f"add descriptions: {undocumented}"
