@@ -7,7 +7,7 @@ icon: lucide/book-open
 A run goes through three stages. Each building block is one section of the
 run config, so the picture is also a map of the config file.
 
-![The workflow: prepare (config, datasets, arrivals), train (windows and labels, PhaseNet, training with validation, repeated by HPO), deliver (best model, MLflow, use in SeisBench or qseek)](../assets/images/workflow.svg){ .sbt-figure }
+![The workflow: prepare (config, datasets, arrivals), train (windows and labels, PhaseNet, training with validation, repeated by HPO), deliver (best model, MLflow, use in SeisBench or qseek)](../assets/images/workflow.svg){ .sbt-figure .sbt-wide }
 
 <div class="grid cards" markdown>
 

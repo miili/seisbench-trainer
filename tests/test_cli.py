@@ -56,6 +56,18 @@ def test_train_json_summary(
     assert summary["best"] == summary["metrics"]["best_det/f1_mean"]
 
 
+def test_train_prints_the_model_id(
+    synthetic_path: Path, tmp_path: Path, tracking_uri: str
+) -> None:
+    # the quickstart downloads the model by this ID
+    config = small_config(synthetic_path, tmp_path, epochs=1)
+    path = tmp_path / "run.json"
+    path.write_text(config.model_dump_json())
+    result = runner.invoke(app, ["train", str(path)])
+    assert result.exit_code == 0, result.output
+    assert "Model m-" in result.stdout
+
+
 def test_help() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0

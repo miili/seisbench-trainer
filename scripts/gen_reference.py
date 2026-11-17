@@ -208,7 +208,7 @@ def config_reference() -> str:
 def _plain(text: str) -> str:
     """Help text with Rich's [bold]...[/] as code spans and < > escaped."""
     text = re.sub(r"\[bold\](.*?)\[/\]", r"`\1`", text or "", flags=re.DOTALL)
-    text = re.sub(r"\[/?[a-z ]*\]", "", text)
+    text = re.sub(r"\[/?(?:bold|red|dim|green|yellow|italic)?\]", "", text)
     return _escape(inspect.cleandoc(text.replace("\\[", "[")))
 
 

@@ -82,7 +82,8 @@ Experiments that set a default are recorded in the
 commit, the numbers, and what was concluded. Commit before you start runs,
 so the logged version names the code.
 
-## Design documents
+## Design history
 
 The [requirements](../requirements.md) and the [implementation plan](../plan.md)
-from the start of the project.
+written at the start of the project, kept for the design decisions they
+record (they are not user documentation).

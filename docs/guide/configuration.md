@@ -80,6 +80,7 @@ all of them:
 | --- | --- |
 | `synthetic-smoke.json` | Laptop smoke run on generated data |
 | `synthetic-hpo.json` | A small HPO study on generated data |
+| `ethz-phasenet-original.json` | Fine-tuning `original` on the public ETHZ dataset (the quickstart) |
 | `bohemiasaxony-phasenet-scratch.json` | PhaseNet from scratch on BohemiaSaxony |
 | `bohemiasaxony-phasenet-original.json` | Fine-tuning `original` on BohemiaSaxony |
 | `bohemiasaxony-phasenet-hpo.json` | HPO on BohemiaSaxony |

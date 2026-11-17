@@ -10,12 +10,13 @@ the best settings found in our experiments.
 - Trains PhaseNet from scratch or fine-tunes pretrained weights on any
   `seisbench.data` dataset, or several at once.
 - Labels every catalogued event in a training window, not only the trace's
-  own: in swarms this gives better pickers (+0.012 F1 on BohemiaSaxony, 17 %
-  more located events in a qseek swarm benchmark).
+  own, so overlapping events are not taught as noise (17 % more located
+  events in a swarm benchmark).
 - Evaluates every epoch against a pretrained baseline and on noise-added
   windows; selects thresholds on the dev split, never on test.
 - Exports the best model as a SeisBench `.json`/`.pt` pair with its
-  thresholds, ready for `seisbench.models.PhaseNet.load()` and qseek.
+  thresholds, ready for `seisbench.models.PhaseNet.load()`, `annotate` and
+  tools built on SeisBench.
 - Tunes hyperparameters with Optuna, with Slurm workers sharing one study.
 - A CLI for people and agents: config checks with exit code 2, `--json`
   results on stdout, logs on stderr.
@@ -46,8 +47,9 @@ and an MLflow folder store on the shared filesystem
 
 | | |
 | --- | --- |
-| [Getting started](docs/getting-started.md) | Install, a first run, your own config |
-| [Guide](docs/guide/configuration.md) | Configuration, data, labels, training, evaluation, tracking, HPO, cluster, automation |
+| [Quickstart](docs/quickstart.md) | Install, a first run, your own data, evaluate, use the model |
+| [Installation](docs/getting-started.md) | CPU and GPU installs, the hpo extra, what a run needs |
+| [Guide](docs/guide/index.md) | Configuration, data, labels, training, evaluation, tracking, HPO, cluster, automation |
 | [Config reference](docs/reference/config.md) | Every field, its default and meaning (generated) |
 | [Findings](docs/findings/index.md) | What the experiments established; the [experiment log](docs/experiments.md) |
 | [Development](docs/development/index.md) | Code layout, checks, docs; rules in [AGENTS.md](AGENTS.md) |

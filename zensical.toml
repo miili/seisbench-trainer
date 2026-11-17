@@ -40,8 +40,6 @@ nav = [
   ] },
   { "Development" = [
     "development/index.md",
-    { "Requirements" = "requirements.md" },
-    { "Implementation plan" = "plan.md" },
   ] },
 ]
 

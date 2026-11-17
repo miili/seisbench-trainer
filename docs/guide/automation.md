@@ -70,5 +70,5 @@ returns the trials, best first. Non-finite values are `null`.
    from `train --json`.
 4. Compare settings with two seeds; differences below 0.002 `det/f1_mean`
    are noise.
-5. Record findings that change a default in `docs/experiments.md`, with the
-   MLflow experiment and the commit.
+5. Record what you learned with the MLflow experiment name and the commit
+   of the code, so the runs can be found and reproduced.

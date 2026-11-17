@@ -6,6 +6,7 @@ icon: lucide/chart-line
 
 ## Two metric families
 
+Validation runs on the dataset's `dev` split, testing on its `test` split.
 Every validation epoch scores each phase two ways:
 
 | Family | Question | How |

@@ -61,7 +61,7 @@ def main(
         bool, typer.Option("--verbose", "-v", help="Show debug log messages.")
     ] = False,
 ) -> None:
-    """Train, evaluate and optimise SeisBench phase pickers.
+    """Train, evaluate and tune SeisBench phase pickers.
 
     One JSON file describes a run; [bold]config[/] prints the defaults and
     checks a file. Every run is tracked in MLflow (MLFLOW_TRACKING_URI).
@@ -162,8 +162,8 @@ def train_command(config_path: ConfigArgument, as_json: JsonOption = False) -> N
     run = mlflow.get_run(run_id)
     metrics = run.data.metrics
     selection = f"best_{config.training.monitor}"
+    model = logged_model(run_id)
     if as_json:
-        model = logged_model(run_id)
         _print_json(
             {
                 "run_id": run_id,
@@ -178,6 +178,7 @@ def train_command(config_path: ConfigArgument, as_json: JsonOption = False) -> N
         )
         return
     console.print(f"Run [bold]{run_id}[/] ({mlflow.get_tracking_uri()})")
+    console.print(f"Model [bold]{model.model_id}[/] ({model.name})")
     if selection in metrics:
         console.print(f"{selection} = {metrics[selection]:.4g}")
     console.print(metrics_table(metrics, PHASES))
@@ -269,7 +270,7 @@ def hpo_command(config_path: ConfigArgument, as_json: JsonOption = False) -> Non
     """Run HPO trials as one worker; start several workers to share the study.
 
     Needs the config's hpo section and the optional extra
-    [bold]pip install 'seisbench-trainer\\[hpo]'[/]. Every trial is an MLflow
+    [bold]pip install -e '.\\[hpo]'[/]. Every trial is an MLflow
     child run of the study's parent run.
     """
     config = _load(config_path)
@@ -282,7 +283,7 @@ def hpo_command(config_path: ConfigArgument, as_json: JsonOption = False) -> Non
         if error.name not in ("optuna", "optuna_integration"):
             raise
         err_console.print(
-            "[red]HPO needs the optional extra:[/] pip install 'seisbench-trainer[hpo]'"
+            "[red]HPO needs the optional extra:[/] pip install -e '.\\[hpo]'"
         )
         raise typer.Exit(1) from error
     signal.signal(signal.SIGTERM, _interrupt_on_sigterm)

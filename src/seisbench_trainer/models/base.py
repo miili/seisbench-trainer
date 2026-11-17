@@ -53,7 +53,7 @@ class PickerModelConfig(StrictModel, ABC):
         description="Run pretrained weights at this rate instead of their own: "
         "data at this rate is fed as if it were at the original rate, which "
         "stretches time by original/new (a 100 Hz PhaseNet at 50 Hz sees 3001 "
-        "samples = 60 s). The exported model stores it, so annotate and Qseek "
+        "samples = 60 s). The exported model stores it, so annotate and qseek "
         "resample their input to it. Must equal data.sampling_rate. None keeps "
         "the weights' own rate.",
     )

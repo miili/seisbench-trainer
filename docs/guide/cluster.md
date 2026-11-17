@@ -28,20 +28,22 @@ mlflow ui --backend-store-uri file:///shared/mlruns --port 5000
 
 ## Notes from running it
 
-- **Install editable and reinstall after every commit**
-  (`pip install -e . --no-deps`): the version, which names the commit, is
-  fixed at install time.
-- **Jobs run the code of the checkout as it is when they start**, and import
-  some modules late. Do not switch branches in that checkout while jobs are
-  queued; run other code from a git worktree with
-  `PYTHONPATH=<worktree>/src`.
-- **The progress bar is shown only on a terminal**. Follow a running job in
-  the MLflow metrics (one row per epoch).
-- **SIGTERM** (cancellation, time limit) ends the run cleanly: the MLflow run
-  is not left `RUNNING`.
-- **Jobs that create a new experiment at the same time** race in the folder
-  store; they all join the oldest experiment of that name.
-- **An evaluation logged into another experiment than the model's** leaves a
-  metrics-only model folder there, which breaks MLflow's lookup of the model
-  by `models:/<id>`. Refer to models by their training run ID: the trainer
-  then loads them from their own artifact location.
+??? note "Running many jobs: what we learned"
+
+    - **Install editable and reinstall after every commit**
+      (`pip install -e . --no-deps`): the version, which names the commit, is
+      fixed at install time.
+    - **Jobs run the code of the checkout as it is when they start**, and import
+      some modules late. Do not switch branches in that checkout while jobs are
+      queued; run other code from a git worktree with
+      `PYTHONPATH=<worktree>/src`.
+    - **The progress bar is shown only on a terminal**. Follow a running job in
+      the MLflow metrics (one row per epoch).
+    - **SIGTERM** (cancellation, time limit) ends the run cleanly: the MLflow run
+      is not left `RUNNING`.
+    - **Jobs that create a new experiment at the same time** race in the folder
+      store; they all join the oldest experiment of that name.
+    - **An evaluation logged into another experiment than the model's** leaves a
+      metrics-only model folder there, which breaks MLflow's lookup of the model
+      by `models:/<id>`. Refer to models by their training run ID: the trainer
+      then loads them from their own artifact location.

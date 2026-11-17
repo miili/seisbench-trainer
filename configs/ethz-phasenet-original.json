@@ -1,0 +1,8 @@
+{
+  "data": {
+    "datasets": [{"type": "seisbench", "name": "ETHZ"}],
+    "component_order": "ENZ"
+  },
+  "model": {"type": "PhaseNet", "pretrained": "original"},
+  "evaluation": {"test_at_end": true}
+}

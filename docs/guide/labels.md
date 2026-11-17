@@ -64,7 +64,8 @@ in seconds gives the same F1, the same width in samples does not.
 
 ## Unread phases
 
-Many catalogues read only one phase at some stations: on deeplowfrequency 24
+Many catalogues read only one phase at some stations: on deeplowfrequency, a local dataset of deep low-frequency volcanic
+events, 24
 % of the event traces have an S pick but no P. A missing pick does not mean
 the arrival is absent; the analyst may just not have read it.
 

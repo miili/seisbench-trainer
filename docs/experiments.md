@@ -2,7 +2,7 @@
 icon: lucide/flask-conical
 ---
 
-# Experiments
+# Experiment log
 
 Findings that set defaults in the code. Each entry names the runs, so the
 numbers can be looked up in MLflow. All scores are on the validation split;

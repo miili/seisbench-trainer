@@ -2,95 +2,68 @@
 icon: lucide/download
 ---
 
-# Getting started
+# Installation
 
-## Install
+seisbench-trainer needs Python 3.13. It installs from the repository; the
+[quickstart](quickstart.md) continues from here.
+
+```bash
+git clone https://github.com/miili/seisbench-trainer
+cd seisbench-trainer
+```
 
 === "Laptop (uv)"
 
-    The repository pins CPU-only torch wheels for development.
+    [uv](https://docs.astral.sh/uv/) installs the locked environment. It
+    pins CPU-only torch wheels: right for development and smoke runs, too
+    slow for real training.
 
     ```bash
-    git clone https://github.com/miili/seisbench-trainer
-    cd seisbench-trainer
     uv sync
     uv run seisbench-trainer --help
     ```
 
-=== "GPU cluster (conda)"
+    Prefix every command with `uv run`, or activate `.venv`.
 
-    `pip` installs the CUDA torch wheels from PyPI.
+=== "GPU (pip or conda)"
+
+    `pip` installs the CUDA torch wheels from PyPI. Use a virtual
+    environment or a conda environment:
 
     ```bash
-    conda create -n seisbench-trainer python=3.13 pip
+    conda create -n seisbench-trainer python=3.13 pip    # or: python3.13 -m venv .venv
     conda activate seisbench-trainer
-    pip install -e .            # add '.[hpo]' for hyperparameter search
+    pip install -e .
+    python -c "import torch; print(torch.cuda.is_available())"   # True
     ```
 
-Python 3.13 is required.
+    An editable install (`-e`) keeps the version current with the git
+    commit, which every run records.
 
-## A first run
+## Optional: hyperparameter search
 
-The synthetic dataset needs no download and trains in about a minute on a
-CPU:
-
-```bash
-uv run seisbench-trainer train configs/synthetic-smoke.json
-uv run mlflow ui          # http://localhost:5000, reads ./mlflow.db
-```
-
-The run prints its ID and the validation scores of the best epoch. In the
-MLflow UI it has the full config, the per-epoch metrics, the validation
-figures (`evaluation/validation_P.html`) and the exported model.
-
-## Your own run
-
-Write the defaults to a file and edit what differs:
+[Hyperparameter search](guide/hpo.md) needs Optuna, the `hpo` extra:
 
 ```bash
-seisbench-trainer config > run.json
+pip install -e '.[hpo]'        # with uv: uv sync (the dev group includes it)
 ```
 
-Every field has a default, so a config only needs what you change. For
-example, PhaseNet fine-tuned from the pretrained `original` weights on
-BohemiaSaxony:
-
-```json
-{
-  "data": {
-    "datasets": [{"type": "seisbench", "name": "BohemiaSaxony"}],
-    "component_order": "ENZ"
-  },
-  "model": {"type": "PhaseNet", "pretrained": "original"}
-}
-```
-
-Pretrained weights fix the component order and the sampling rate: `original`
-was trained on `ENZ` at 100 Hz, and the trainer refuses a mismatch instead of
-feeding swapped channels. Check a config before you start it; this prints
-every resolved value, or the list of problems with exit code 2:
+## Check the installation
 
 ```bash
-seisbench-trainer config run.json
+seisbench-trainer version
+seisbench-trainer train configs/synthetic-smoke.json     # about a minute on a CPU
 ```
 
-Then train, and evaluate the best model on the test split:
+The smoke run generates its data and downloads only the small weights of the
+pretrained baseline. Its results go to `./mlflow.db`; `mlflow ui` shows them.
+Where to keep results on a cluster is in
+[Tracking and models](guide/tracking.md#backends).
 
-```bash
-seisbench-trainer train run.json
-seisbench-trainer evaluate --model <run_id>
-```
+## What a run needs
 
-## Where results go
-
-MLflow reads `MLFLOW_TRACKING_URI`. Without it, runs go to `./mlflow.db`
-(SQLite). On a cluster without an MLflow server, use a folder on the shared
-filesystem (see [Cluster](guide/cluster.md)):
-
-```bash
-export MLFLOW_TRACKING_URI=file:///shared/mlruns
-export MLFLOW_ALLOW_FILE_STORE=true
-```
-
-Lightning checkpoints stay local in `training.checkpoint_dir`; only the best
-model is uploaded.
+- **Memory**: every split is held in memory. Plan RAM for the decoded
+  waveforms at the training sampling rate.
+- **A GPU** for real training; one run uses one device.
+- **Disk** for the local Lightning checkpoints (`training.checkpoint_dir`)
+  and the MLflow store.

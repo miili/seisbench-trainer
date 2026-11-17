@@ -1,9 +1,20 @@
 /* Landing page and figures. Colours follow the SVGs: sky (P), amber (S). */
 
-:root {
+/* bright accents on dark backgrounds, darker ones on light for contrast */
+:root,
+[data-md-color-scheme="default"] {
+  --sbt-sky: #0284c7;
+  --sbt-amber: #d97706;
+}
+
+[data-md-color-scheme="slate"] {
   --sbt-sky: #38bdf8;
   --sbt-amber: #f59e0b;
-  --sbt-violet: #a78bfa;
+}
+
+/* no floating edit button next to the landing page hero */
+.md-content:has(.sbt-hero) .md-content__button {
+  display: none;
 }
 
 /* hero: text left, animation right; stacked on narrow screens */
@@ -37,6 +48,7 @@
   font-weight: 800;
   line-height: 1.12;
   letter-spacing: -0.02em;
+  text-wrap: balance;
   background: linear-gradient(100deg, var(--md-default-fg-color) 30%, var(--sbt-sky) 75%, var(--sbt-amber));
   -webkit-background-clip: text;
   background-clip: text;
@@ -47,7 +59,7 @@
   display: none;
 }
 
-.md-typeset .sbt-hero__text > p:not(.sbt-eyebrow) {
+.md-typeset .sbt-hero__text > p:not(.sbt-eyebrow, .sbt-note) {
   font-size: 0.95rem;
   line-height: 1.6;
 }
@@ -56,12 +68,31 @@
   margin: 0.4rem 0.4rem 0 0;
 }
 
+.md-typeset .sbt-note {
+  margin-top: 1rem;
+  font-size: 0.72rem;
+  color: var(--md-default-fg-color--light);
+}
+
 .md-typeset .sbt-hero__image,
 .md-typeset .sbt-figure {
   display: block;
   width: 100%;
   border-radius: 0.9rem;
   box-shadow: 0 0.8rem 2.4rem rgba(11, 18, 34, 0.28);
+}
+
+/* the SVG panels are dark: a faint edge keeps them apart from the dark theme */
+[data-md-color-scheme="slate"] .md-typeset .sbt-hero__image,
+[data-md-color-scheme="slate"] .md-typeset .sbt-figure:not(.sbt-figure--light) {
+  outline: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* the workflow overview is too detailed for a phone; the cards cover it */
+@media screen and (max-width: 45em) {
+  .md-typeset .sbt-wide {
+    display: none;
+  }
 }
 
 /* matplotlib figures are white: give them a frame in both themes */
@@ -94,6 +125,7 @@
 
 .md-typeset .sbt-stats strong {
   display: block;
+  overflow-wrap: normal;
   font-size: 1.35rem;
   font-weight: 800;
   color: var(--sbt-sky);
@@ -108,4 +140,10 @@
 /* card icons in the accent colour */
 .md-typeset .grid.cards .lg.middle {
   color: var(--sbt-sky);
+}
+
+@media screen and (max-width: 30em) {
+  .md-typeset .sbt-stats strong {
+    font-size: 1.05rem;
+  }
 }

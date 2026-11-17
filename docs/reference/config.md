@@ -126,7 +126,7 @@ noise. Input 3001 samples (30 s at 100 Hz) unless
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `pretrained` | string \| null | `null` | Weights to start from: a SeisBench pretrained name (e.g. 'original') or a local SeisBench model: the path of its .json (or .pt) file, or that path without suffix. None trains from scratch. |
-| `sampling_rate` | float (> 0) \| null | `null` | Run pretrained weights at this rate instead of their own: data at this rate is fed as if it were at the original rate, which stretches time by original/new (a 100 Hz PhaseNet at 50 Hz sees 3001 samples = 60 s). The exported model stores it, so annotate and Qseek resample their input to it. Must equal data.sampling_rate. None keeps the weights' own rate. |
+| `sampling_rate` | float (> 0) \| null | `null` | Run pretrained weights at this rate instead of their own: data at this rate is fed as if it were at the original rate, which stretches time by original/new (a 100 Hz PhaseNet at 50 Hz sees 3001 samples = 60 s). The exported model stores it, so annotate and qseek resample their input to it. Must equal data.sampling_rate. None keeps the weights' own rate. |
 | `loss` | [CrossEntropyLoss](#crossentropyloss) | `{"type": "cross_entropy"}` | Training loss on the model's logits. |
 
 ## CrossEntropyLoss {#crossentropyloss}

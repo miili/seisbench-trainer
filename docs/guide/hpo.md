@@ -4,7 +4,8 @@ icon: lucide/sparkles
 
 # Hyperparameter search
 
-Needs the optional extra: `pip install 'seisbench-trainer[hpo]'` (Optuna).
+Needs Optuna, the optional `hpo` extra: `pip install -e '.[hpo]'` (with uv,
+`uv sync` includes it).
 
 Add an `hpo` section to a run config. Parameters are dotted paths into the
 config; every trial applies its values to a copy of the config, validates it

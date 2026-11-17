@@ -28,6 +28,25 @@ Each source can select traces with a pandas `query` on its metadata, e.g.
 Never let a hyperparameter search change preprocessing: that would change the
 test set.
 
+## Bring your own dataset
+
+A local dataset is a folder in SeisBench's format: `metadata.csv` with one
+row per trace and `waveforms.hdf5` with the waveforms. SeisBench's
+`WaveformDataWriter` writes both
+([SeisBench docs](https://seisbench.readthedocs.io)). The trainer reads
+these metadata columns:
+
+| Column | Needed for |
+| --- | --- |
+| `trace_name`, `trace_sampling_rate_hz` | Every dataset |
+| `split` (`train`, `dev`, `test`) | The splits; or add a `resplit` step |
+| `trace_<phase>_arrival_sample`, e.g. `trace_P_arrival_sample`, `trace_Sg_arrival_sample` | The picks; recognised phase names: `P`, `p`, `Pg`, `Pn`, `P1`, `pP`, `PmP`, `pwP`, `pwPm` and `S`, `s`, `Sg`, `Sn`, `S1`, `SmS` |
+| `trace_start_time`, `station_network_code`, `station_code` (and `station_location_code`, `source_id` if present) | The default `label_events: all_events`; without them set `"label_events": "trace_event"` |
+| `trace_category` with noise traces as `"noise"` | Real-noise augmentation and the noisy validation; skipped with a warning without noise traces |
+
+`seisbench-trainer config` checks the config, not the data: a missing column
+shows up when a run loads the dataset.
+
 ## Component order and sampling rate
 
 `data.component_order` is the channel order the model is trained on, and the

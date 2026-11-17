@@ -15,7 +15,8 @@ icon: lucide/activity
 `pretrained` is a SeisBench pretrained name (`original`, `volpick`,
 `stead`, ...), the path of a local SeisBench model (its `.json` or `.pt`, or
 the path without suffix), or `null` to train from scratch. On
-deeplowfrequency, fine-tuning `volpick` gained 0.017 `det/f1_mean` over
+deeplowfrequency (a local dataset of deep low-frequency volcanic events),
+fine-tuning `volpick` gained 0.017 `det/f1_mean` over
 training from scratch; on the much larger BohemiaSaxony, fine-tuning
 `original` and training from scratch ended within the noise (0.847 and
 0.846).
