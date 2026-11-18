@@ -22,6 +22,7 @@ nav = [
     { "Configuration" = "guide/configuration.md" },
     { "Data" = "guide/data.md" },
     { "Labels" = "guide/labels.md" },
+    { "Augmentations" = "guide/augmentations.md" },
     { "Training" = "guide/training.md" },
     { "Evaluation" = "guide/evaluation.md" },
     { "Tracking and models" = "guide/tracking.md" },

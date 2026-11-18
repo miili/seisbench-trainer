@@ -73,34 +73,10 @@ the decoded waveforms at `data.sampling_rate`: BohemiaSaxony (329k traces of
 
 ## Training windows
 
-`augmentation.train` is the training pipeline, applied in order:
-
-1. `pick_window` steps (optional): cut a context window around a random pick,
-   with `probability`; otherwise the next step crops from the whole trace.
-2. Exactly one `random_window`: crop a random window of the model input
-   length.
-3. Perturbations, each with a `probability`: `rotate_horizontal`,
-   `real_noise`, `channel_dropout`, `add_gap`, `gaussian_noise`.
-
-The defaults follow SeisBench's pick-benchmark PhaseNet recipe plus the
-perturbations that held up in our experiments ([Findings](../findings/index.md)):
-
-```json
-[
-  {"type": "pick_window", "probability": 0.667},
-  {"type": "random_window"},
-  {"type": "rotate_horizontal", "probability": 0.5},
-  {"type": "real_noise", "probability": 0.5},
-  {"type": "channel_dropout", "probability": 0.2}
-]
-```
-
-The perturbations are reviewed re-implementations of the
-`seisbench.generate` ones; each class documents where it deviates (for
-example, `real_noise` uses only the training split's noise traces, rotates
-their horizontals and never adds noise to a missing component). Datasets
-store missing components and gaps as NaN; every pipeline sets them to zero
-first, as `annotate` does.
+The training pipeline (`augmentation.train`) cuts a window around a pick,
+crops the model input from it and perturbs the waveforms: rotated
+horizontals, real noise, dropped components. Every step, its defaults and
+what it changes are in [Augmentations](augmentations.md).
 
 Validation and test use fixed windows instead: the first pick at a random but
 per-trace fixed offset, so the windows are identical in every epoch and run

@@ -5,10 +5,13 @@ icon: lucide/tag
 # Labels
 
 PhaseNet learns from a target curve per output channel: P, S and noise. This
-page explains which arrivals get a curve, how the curve looks, and where the
-loss and the metrics ignore a phase that may be there but was not read.
+page explains which arrivals get a curve, how the curve looks, how the labels
+follow the training window, and where the loss and the metrics ignore a phase
+that may be there but was not read.
 
-## Every event in the window
+## Other events in the window are labelled, not taught as noise
+
+![One window from a swarm with two events: with trace_event only event 0 is labelled and the arrivals of event 1 are labelled noise; with all_events both events are labelled](../assets/images/labels-events.svg){ .sbt-figure }
 
 A SeisBench metadata row describes one trace and one event: its pick columns
 (`trace_P_arrival_sample`, `trace_Sg_arrival_sample`, ...) hold that event's
@@ -45,7 +48,13 @@ SeisBench's behaviour.
     `seisbench-trainer evaluate`, which uses the setting of the config it is
     given.
 
-## The label curve
+## The annotation: one curve per output channel
+
+The labels are the target of the model's output, its annotation: one row per
+output channel. PhaseNet's channels are `PSN`; each row is matched to its
+channel by the model's label name, never by position.
+
+![Left: the Gaussian, triangle and box label shapes with their width sigma. Right: a window with one event and its P, S and noise rows; noise is 1 minus P minus S](../assets/images/labels-annotation.svg){ .sbt-figure }
 
 `data.labels.PickLabeller` writes one curve per arrival, inside the window or
 not (a pick just outside still leaves its tail), and takes the maximum per
@@ -62,16 +71,44 @@ modes (polarity labels, multi-window batches, column detection).
 The width belongs in seconds, not samples: at 50 Hz and 100 Hz the same width
 in seconds gives the same F1, the same width in samples does not.
 
-## Unread phases
+## Labels follow the window
 
-Many catalogues read only one phase at some stations: on deeplowfrequency, a local dataset of deep low-frequency volcanic
-events, 24
-% of the event traces have an S pick but no P. A missing pick does not mean
-the arrival is absent; the analyst may just not have read it.
+Labels are not stored with the data. Like SeisBench's
+`ProbabilisticLabeller`, `PickLabeller` writes them for every training
+example from scratch, after the window is cut and the perturbations are
+applied, from the positions of the arrivals in that window. When
+`random_window` crops the trace somewhere else, the arrivals shift with the
+crop and their curves with them: the model sees each pick at a new position
+in every epoch, and learns to pick wherever it is in the input.
+
+![A window slides over a continuous trace with four events; below, the window as the model sees it, with the P and S labels written for each position](../assets/images/labels-windows.svg){ .sbt-figure }
+
+- An arrival just outside the window still adds the part of its curve that
+  reaches into it.
+- An arrival that a perturbation removes (an [`add_gap`](augmentations.md#add_gap)
+  over the pick) gets no curve.
+- Validation and test windows are labelled the same way, but placed at a
+  fixed offset per trace, so they are the same in every epoch.
+
+At inference SeisBench's `annotate` slides the model over a continuous stream
+in overlapping windows and combines their outputs into one annotation per
+channel, the counterpart of the moving training window.
+
+## Missing phase labels
+
+!!! info "A missing pick is not a missing arrival"
+    Many catalogues read only one phase at some stations: on
+    deeplowfrequency, a local dataset of deep low-frequency volcanic events,
+    24 % of the event traces have an S pick but no P. The arrival may well
+    be in the waveform; the analyst may just not have read it. Labelled as
+    noise, it would teach the model to ignore real arrivals, and the metrics
+    would count picking it as a false pick.
 
 With `missing_picks: "unread"` (the default), for every event of the window
 that has one phase but not the other, the stretch where the other phase can
-arrive is left out:
+arrive is masked:
+
+![Two windows: S read and P not, with the P row masked from max_sp_s before the S up to 3 sigma before it; P read and S not, with the S row masked from 3 sigma after the P up to max_sp_s after it](../assets/images/labels-missing.svg){ .sbt-figure }
 
 - S but no P: the P row is masked from `max_sp_s` before the S up to 3 label
   sigmas before it.

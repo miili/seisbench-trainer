@@ -29,8 +29,15 @@ run config, so the picture is also a map of the config file.
 
     ---
 
-    Every event in a window labelled, the label curve, and phases that may
-    arrive unread.
+    Every event in a window labelled, the annotation curves, how they
+    follow the window, and missing phase labels.
+
+-   :lucide-shuffle:{ .lg .middle } __[Augmentations](augmentations.md)__
+
+    ---
+
+    The training pipeline: windows around picks, random crops, rotation,
+    real noise, dropped components and gaps.
 
 -   :lucide-activity:{ .lg .middle } __[Training](training.md)__
 

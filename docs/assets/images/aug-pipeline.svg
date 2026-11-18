@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-labelledby="t d">
+<title id="t">The training pipeline</title>
+<desc id="d">Every training example passes the steps from top to bottom. A step with a probability is applied with that chance and otherwise skipped. The defaults: pick_window with probability two thirds, random_window always, rotate_horizontal and real_noise with one half, channel_dropout with one fifth; then normalization and labels, always.</desc>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0a1020"/><stop offset="1" stop-color="#141d38"/></linearGradient>
+<pattern id="dots" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#fff" fill-opacity=".04"/></pattern>
+<pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#fb7185" fill-opacity=".07"/><line x1="0" y1="0" x2="0" y2="7" stroke="#fb7185" stroke-opacity=".45" stroke-width="1.4"/></pattern>
+<pattern id="hatchg" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" fill="#94a3b8" fill-opacity=".06"/><line x1="0" y1="0" x2="0" y2="7" stroke="#94a3b8" stroke-opacity=".35" stroke-width="1.4"/></pattern>
+
+</defs>
+<style>
+.cap{font:700 12px system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.16em;fill:#cbd5e1}
+.lbl{font:600 13.5px system-ui,-apple-system,Segoe UI,sans-serif;fill:#e2e8f0}
+.dim{font:500 13px system-ui,-apple-system,Segoe UI,sans-serif;fill:#8193b2}
+.sm{font-size:12px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;font-weight:600}
+.ax{stroke:#26324f;stroke-width:1}
+.wf{fill:none;stroke:#b6c4de;stroke-width:1;stroke-linejoin:round}
+.cv{fill:none;stroke-width:1.8;stroke-linejoin:round}
+.pk{stroke-width:1.2;stroke-dasharray:3 4}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<rect width="800" height="500" rx="16" fill="url(#bg)"/>
+<rect width="800" height="500" rx="16" fill="url(#dots)"/>
+<text class="cap" x="146" y="34">STEP</text><text class="cap" x="352" y="34">P</text><text class="cap" x="430" y="34">WHAT IT DOES</text>
+<line x1="40" y1="106" x2="40" y2="190" stroke="#38bdf8" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
+<text class="cap" transform="translate(30 148.0) rotate(-90)" text-anchor="middle" fill="#38bdf8" style="font-size:10.5px;fill:#38bdf8">WINDOWS</text>
+<line x1="40" y1="210" x2="40" y2="346" stroke="#a78bfa" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
+<text class="cap" transform="translate(30 278.0) rotate(-90)" text-anchor="middle" fill="#a78bfa" style="font-size:10.5px;fill:#a78bfa">PERTURBATIONS</text>
+<line x1="40" y1="366" x2="40" y2="450" stroke="#34d399" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
+<text class="cap" transform="translate(30 408.0) rotate(-90)" text-anchor="middle" fill="#34d399" style="font-size:10.5px;fill:#34d399">ALWAYS</text>
+<line x1="236" y1="70" x2="236" y2="434" stroke="#2b3a62" stroke-width="1.6"/>
+<path d="M236 96C206 96 128 100 128 122C128 144 206 148 236 148" fill="none" stroke="#3b4a72" stroke-width="1.3" stroke-dasharray="3 4"/>
+<path d="M236 200C206 200 128 204 128 226C128 248 206 252 236 252" fill="none" stroke="#3b4a72" stroke-width="1.3" stroke-dasharray="3 4"/>
+<path d="M236 252C206 252 128 256 128 278C128 300 206 304 236 304" fill="none" stroke="#3b4a72" stroke-width="1.3" stroke-dasharray="3 4"/>
+<path d="M236 304C206 304 128 308 128 330C128 352 206 356 236 356" fill="none" stroke="#3b4a72" stroke-width="1.3" stroke-dasharray="3 4"/>
+<text class="dim sm" x="124" y="230" text-anchor="end" style="font-size:11px">skipped</text>
+<rect x="150.0" y="55" width="172" height="30" rx="9" fill="#111a33" stroke="#94a3b8" stroke-opacity=".55"/>
+<text class="mono" x="236" y="74.5" text-anchor="middle" fill="#94a3b8">trace</text>
+<text class="dim" x="430" y="74.5">a training trace, NaN set to 0, its arrivals</text>
+<rect x="150.0" y="107" width="172" height="30" rx="9" fill="#111a33" stroke="#38bdf8" stroke-opacity=".55"/>
+<text class="mono" x="236" y="126.5" text-anchor="middle" fill="#38bdf8">pick_window</text>
+<text class="mono" x="352" y="126.5" fill="#38bdf8">2/3</text>
+<text class="dim" x="430" y="126.5">a 60 s context window around a random pick</text>
+<rect x="150.0" y="159" width="172" height="30" rx="9" fill="#111a33" stroke="#38bdf8" stroke-opacity=".55"/>
+<text class="mono" x="236" y="178.5" text-anchor="middle" fill="#38bdf8">random_window</text>
+<text class="mono" x="352" y="178.5" fill="#64748b">always</text>
+<text class="dim" x="430" y="178.5">crop to the model input</text>
+<rect x="150.0" y="211" width="172" height="30" rx="9" fill="#111a33" stroke="#a78bfa" stroke-opacity=".55"/>
+<text class="mono" x="236" y="230.5" text-anchor="middle" fill="#a78bfa">rotate_horizontal</text>
+<text class="mono" x="352" y="230.5" fill="#a78bfa">1/2</text>
+<text class="dim" x="430" y="230.5">rotate N and E by a random angle</text>
+<rect x="150.0" y="263" width="172" height="30" rx="9" fill="#111a33" stroke="#a78bfa" stroke-opacity=".55"/>
+<text class="mono" x="236" y="282.5" text-anchor="middle" fill="#a78bfa">real_noise</text>
+<text class="mono" x="352" y="282.5" fill="#a78bfa">1/2</text>
+<text class="dim" x="430" y="282.5">add recorded noise, only to windows with a pick</text>
+<rect x="150.0" y="315" width="172" height="30" rx="9" fill="#111a33" stroke="#a78bfa" stroke-opacity=".55"/>
+<text class="mono" x="236" y="334.5" text-anchor="middle" fill="#a78bfa">channel_dropout</text>
+<text class="mono" x="352" y="334.5" fill="#a78bfa">1/5</text>
+<text class="dim" x="430" y="334.5">zero one or two components</text>
+<rect x="150.0" y="367" width="172" height="30" rx="9" fill="#111a33" stroke="#34d399" stroke-opacity=".55"/>
+<text class="mono" x="236" y="386.5" text-anchor="middle" fill="#34d399">normalize</text>
+<text class="mono" x="352" y="386.5" fill="#64748b">always</text>
+<text class="dim" x="430" y="386.5">demean, scale each channel</text>
+<rect x="150.0" y="419" width="172" height="30" rx="9" fill="#111a33" stroke="#34d399" stroke-opacity=".55"/>
+<text class="mono" x="236" y="438.5" text-anchor="middle" fill="#34d399">labels</text>
+<text class="mono" x="352" y="438.5" fill="#64748b">always</text>
+<text class="dim" x="430" y="438.5">P, S and noise curves</text>
+<circle r="5" fill="#38bdf8" opacity="0"><animateMotion dur="9.0s" begin="0.00s" repeatCount="indefinite" path="M236 85L236 148L236 200L236 252L236 252C206 252 128 256 128 278C128 300 206 304 236 304L236 304C206 304 128 308 128 330C128 352 206 356 236 356L236 408L236 434" calcMode="spline" keyTimes="0;1" keySplines=".35 0 .65 1"/><animate attributeName="opacity" dur="9.0s" begin="0.00s" repeatCount="indefinite" values="0;.95;.95;0" keyTimes="0;.06;.92;1"/></circle>
+<circle r="5" fill="#f59e0b" opacity="0"><animateMotion dur="9.0s" begin="-3.00s" repeatCount="indefinite" path="M236 85L236 96C206 96 128 100 128 122C128 144 206 148 236 148L236 200L236 200C206 200 128 204 128 226C128 248 206 252 236 252L236 304L236 356L236 408L236 434" calcMode="spline" keyTimes="0;1" keySplines=".35 0 .65 1"/><animate attributeName="opacity" dur="9.0s" begin="-3.00s" repeatCount="indefinite" values="0;.95;.95;0" keyTimes="0;.06;.92;1"/></circle>
+<circle r="5" fill="#e2e8f0" opacity="0"><animateMotion dur="9.0s" begin="-6.00s" repeatCount="indefinite" path="M236 85L236 148L236 200L236 200C206 200 128 204 128 226C128 248 206 252 236 252L236 304L236 304C206 304 128 308 128 330C128 352 206 356 236 356L236 408L236 434" calcMode="spline" keyTimes="0;1" keySplines=".35 0 .65 1"/><animate attributeName="opacity" dur="9.0s" begin="-6.00s" repeatCount="indefinite" values="0;.95;.95;0" keyTimes="0;.06;.92;1"/></circle>
+</svg>

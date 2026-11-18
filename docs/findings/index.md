@@ -30,7 +30,7 @@ tectonic swarm earthquakes in West Bohemia and Saxony) and deeplowfrequency
 | Setting | Default | Evidence |
 | --- | --- | --- |
 | Labels | `label_events: all_events`, `max_sp_s: 15` | +0.012 test F1 on BohemiaSaxony, +0.004-0.006 on deeplowfrequency, better pick times; 17 % more located events in a qseek swarm benchmark ([2026-11-17](../experiments.md#2026-11-17-labelling-every-event-in-the-window-label_events)) |
-| Unread phases | `missing_picks: unread` | +0.003 on both datasets; the metrics no longer punish picking an unread P |
+| Missing phase labels | `missing_picks: unread` | +0.003 on both datasets; the metrics no longer punish picking an unread P |
 | Loss | cross-entropy from logits, noise weight 0.5 | best F1 on BohemiaSaxony (+0.004 over weight 1), higher F1-optimal thresholds (about 0.5 against 0.3) ([2026-11-12](../experiments.md#2026-11-12-phasenet-loss-on-bohemiasaxony)) |
 | Run length | plateau 5, early stop 15, `min_delta` 0.002, at most 100 epochs | the best of the run-length variants ([2026-11-12](../experiments.md#2026-11-12-run-length-without-a-fixed-epoch-count)); two seeds within 0.0004, 0.002-0.003 above a fixed cosine schedule ([2026-11-13](../experiments.md#2026-11-13-the-new-defaults-on-the-new-bohemiasaxony)) |
 | Selection | `training.monitor: det/f1_mean` | comparable across loss settings |
