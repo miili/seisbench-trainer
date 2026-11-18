@@ -103,43 +103,20 @@
   padding: 0.6rem;
 }
 
-/* four key numbers under the hero */
-.md-typeset .sbt-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.8rem;
-  margin: 0 0 2.4rem;
-}
-
-@media screen and (max-width: 60em) {
-  .md-typeset .sbt-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.md-typeset .sbt-stats > div {
-  padding: 0.9rem 1rem;
-  border: 0.05rem solid var(--md-default-fg-color--lightest);
-  border-radius: 0.7rem;
-}
-
-.md-typeset .sbt-stats strong {
-  display: block;
-  overflow-wrap: normal;
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--sbt-sky);
-}
-
-.md-typeset .sbt-stats span {
-  font-size: 0.72rem;
-  line-height: 1.4;
-  color: var(--md-default-fg-color--light);
-}
-
 /* card icons in the accent colour */
 .md-typeset .grid.cards .lg.middle {
   color: var(--sbt-sky);
+}
+
+/* three feature cards in a row */
+.md-typeset .grid.cards.sbt-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media screen and (max-width: 60em) {
+  .md-typeset .grid.cards.sbt-cards {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* feature cards: evidence line and link pinned to the bottom */
@@ -173,10 +150,4 @@
 .md-typeset .sbt-proof strong {
   color: var(--sbt-amber);
   font-weight: 800;
-}
-
-@media screen and (max-width: 30em) {
-  .md-typeset .sbt-stats strong {
-    font-size: 1.05rem;
-  }
 }

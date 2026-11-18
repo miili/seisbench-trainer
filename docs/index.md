@@ -30,105 +30,48 @@ a ready-to-use SeisBench model.
 
 </div>
 
-<div class="sbt-stats" markdown>
-
-<div><strong>1 file</strong><span>describes a run; every field has a default</span></div>
-<div><strong>4 commands</strong><span>config, train, evaluate, hpo</span></div>
-<div><strong>Any dataset</strong><span>SeisBench, local, or several at once</span></div>
-<div><strong>+17 %</strong><span>located events in a swarm benchmark with the default labels</span></div>
-
-</div>
-
 ## Why seisbench-trainer
 
 <div class="grid cards sbt-cards" markdown>
 
--   :lucide-audio-waveform:{ .lg .middle } __Every event in the window labelled__
+-   :lucide-tag:{ .lg .middle } __Better labels__
 
     ---
 
-    In a swarm, a window cut around one event often holds the next. Read
-    from its metadata row, those arrivals are taught as noise. The trainer
-    finds every catalogued pick by station and time and labels it.
+    Every catalogued event in a window is labelled, not taught as noise,
+    and a phase the analyst did not read is masked, not punished.
 
     **+17 %** located events in a qseek swarm benchmark, **+0.012** test F1
     { .sbt-proof }
 
     [:octicons-arrow-right-24: Labels](guide/labels.md)
 
--   :lucide-flask-conical:{ .lg .middle } __Defaults that won experiments__
+-   :lucide-chart-line:{ .lg .middle } __Seismological insight in MLflow__
 
     ---
 
-    Loss weights, learning rate, run length, augmentation and label width
-    were settled by experiments on tectonic swarms and deep
-    low-frequency events. A config names only what differs.
+    Not just a loss curve: pick residuals and detection F1 per phase every
+    epoch, next to the pretrained model, on clean and noisy windows, with
+    figures of residuals, detection scores and ROC.
 
-    **`{}`** is a complete config: PhaseNet from scratch on ETHZ
+    `pick_P/mae_s`, `det_S/f1`, `noisy/det/f1_mean` side by side across
+    runs
     { .sbt-proof }
-
-    [:octicons-arrow-right-24: Findings](findings/index.md)
-
--   :lucide-chart-line:{ .lg .middle } __Scored against the pretrained model__
-
-    ---
-
-    Every epoch: pick residuals in seconds and detection F1 per phase, on
-    clean windows and with real noise added, next to the pretrained
-    baseline. Thresholds come from the dev split; test is scored once.
-
-    **0.70 → 0.86** validation detection F1 on BohemiaSaxony, pretrained → trained
-    { .sbt-proof }
-
-    [:octicons-arrow-right-24: Evaluation](guide/evaluation.md)
-
--   :lucide-database:{ .lg .middle } __Any dataset, checked against the model__
-
-    ---
-
-    SeisBench datasets by name, your own folders, or several in one run;
-    queried, resplit with events kept together. Component order and
-    sampling rate must match the model: a mismatch is an error, not a
-    silent channel swap.
-
-    ```json
-    "datasets": [
-      {"type": "seisbench", "name": "ETHZ"},
-      {"type": "local", "path": "~/data/mine"}
-    ]
-    ```
-
-    [:octicons-arrow-right-24: Data](guide/data.md)
-
--   :lucide-package:{ .lg .middle } __A SeisBench model at the end__
-
-    ---
-
-    The best epoch is exported as a `.json`/`.pt` pair that carries its
-    component order, sampling rate and validation thresholds. Load it in
-    SeisBench, or hand it to qseek.
-
-    ```python
-    model = sbm.PhaseNet.load(path)
-    picks = model.classify(stream).picks
-    ```
 
     [:octicons-arrow-right-24: Tracking and models](guide/tracking.md)
 
--   :lucide-server:{ .lg .middle } __Laptop to Slurm, scripted__
+-   :lucide-fingerprint:{ .lg .middle } __Reproducible by default__
 
     ---
 
-    The same file trains on a CPU or as a Slurm job, with MLflow in a shared
-    folder and no server. Optuna workers share one study. `--json` and exit
-    codes let scripts and agents drive it.
+    Every run records its resolved config, seed, datasets, package
+    versions and the git commit; resplits and validation windows are
+    seeded.
 
-    ```bash
-    sbatch --array=0-3 \
-      slurm/hpo_worker.sbatch run.json
-    ```
+    Any result can be rerun from its MLflow record alone
+    { .sbt-proof }
 
-    [:octicons-arrow-right-24: Slurm cluster](guide/cluster.md)
+    [:octicons-arrow-right-24: Training](guide/training.md#reproducibility)
 
 </div>
 
